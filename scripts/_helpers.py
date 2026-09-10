@@ -353,10 +353,9 @@ def script_path_provider(project_dir: Path) -> Callable[[str], str]:
     -------
     Callable[[str], str]
         A function that takes a script name as input and returns the full path to the
-        script as a plain string. A Path is deliberately not returned: Snakemake's own
-        script executor stringifies it before use, but its provenance-hash code path
-        (only exercised under `--cache`) formats it directly with a wildcard-aware
-        string formatter that raises TypeError on a Path.
+        script as a plain string, since the provenance-hash code path used under
+        `--cache` formats it with a wildcard-aware string formatter that raises
+        TypeError on a Path.
     """
 
     def _get_script_path(script: str) -> str:

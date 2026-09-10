@@ -5,10 +5,9 @@
 """
 Harness for testing Snakemake's between-workflow caching (--cache) on this workflow.
 
-The helpers here build the DAG through the Snakemake Python API (snakemake.api) with
-a cache directory pointed at a temporary path, and inspect which jobs would read from
-or write to the output file cache. Later tasks that add `cache: True` to specific
-rules import these helpers to assert on cache keys and cache stability.
+Builds the DAG through the Snakemake Python API with a cache directory pointed at a
+temporary path, and inspects which jobs would read from or write to the output file
+cache.
 """
 
 import os
@@ -65,9 +64,8 @@ def cache_entries(
             )
             workflow_api.dag(dag_settings=DAGSettings(targets=targets))
             workflow = workflow_api._workflow
-            # Mirrors what Workflow.execute() does before _build_dag(), minus actually
-            # running anything: it is what turns on the output file cache and the
-            # per-rule cache flag for --cache.
+            # Mirrors Workflow.execute() up to _build_dag(), without running anything,
+            # to turn on the output file cache and the per-rule cache flag for --cache.
             workflow._prepare_dag(
                 forceall=False, ignore_incomplete=False, lock_warn_only=True
             )
@@ -123,7 +121,7 @@ def dry_run(
     """Run `snakemake -n --cache` as a subprocess and return its combined output."""
     env = os.environ.copy()
     env["SNAKEMAKE_OUTPUT_CACHE"] = str(cache_dir)
-    # --configfile takes nargs="+", so it would otherwise swallow the targets too;
+    # --configfile takes nargs="+" and would otherwise swallow the targets too.
     # "--" marks the rest of argv as explicit targets regardless of what precedes it.
     cmd = [
         "snakemake",
@@ -171,11 +169,10 @@ def test_caching_switch_no_cache_lines_without_flag() -> None:
     )
     output = result.stdout + result.stderr
     assert result.returncode == 0
-    # Matplotlib's own font-cache banner is unrelated noise; exclude it so this
-    # only fails on genuine Snakemake caching output. Snakemake also always notes
-    # that a `cache: True` rule is cache-eligible, independent of --cache: that is
-    # the directive working as intended (constraints.md requires it unconditional),
-    # not the fork behaving differently from upstream.
+    # Matplotlib's font-cache banner is unrelated noise, excluded so this only
+    # fails on genuine Snakemake caching output. A `cache: True` rule must always
+    # report as cache-eligible in dry runs, with or without --cache, so that line
+    # here is expected, not the fork diverging from upstream.
     relevant_lines = (
         line
         for line in output.splitlines()
@@ -198,12 +195,8 @@ def test_every_storage_rule_marks_hash_omit_storage_content() -> None:
     """
     Every rule with a storage() input must carry the omit-storage-content flag.
 
-    A cached downstream job's provenance hash folds in every upstream job's key.
-    Without the flag, that would content-hash a retrieve rule's storage input,
-    forcing a download even when the server reports no checksum. Iterating
-    `workflow.rules` (populated once the API has parsed the Snakefile) checks
-    every rule that survived this config's `dataset_version(...)` branches, so a
-    future storage-input rule added without the directive fails this test.
+    Otherwise a cached downstream job's provenance hash would content-hash the
+    storage input, forcing a download even when the server reports no checksum.
     """
     with SnakemakeApi(OutputSettings()) as snakemake_api:
         workflow_api = snakemake_api.workflow(
@@ -227,12 +220,9 @@ def test_retrieve_cutout_hashes_without_storage_content(cache_dir: Path) -> None
     """
     Hashing a storage-input job must not need the storage object's content.
 
-    retrieve_cutout's sole input is storage(...). Provenance hashing runs before
-    a job would ever execute and fetch its input, so without
-    `hash-omit-storage-content` it tries to checksum an unretrieved storage
-    placeholder and fails (a "broken symlink" WorkflowError). With the flag, the
-    object's URL is hashed instead: the hash succeeds and hashing itself fetches
-    nothing new under .snakemake/storage.
+    Provenance hashing runs before a job would ever execute and fetch its input,
+    so without `hash-omit-storage-content` it tries to checksum an unretrieved
+    storage placeholder and fails with a broken-symlink WorkflowError.
     """
     prior_cache_env = os.environ.get("SNAKEMAKE_OUTPUT_CACHE")
     os.environ["SNAKEMAKE_OUTPUT_CACHE"] = str(cache_dir)
@@ -409,7 +399,7 @@ def _network_chain_targets(
 
 
 def _network_chain_key(rule: str, horizon: str = "2050") -> CacheKey:
-    """Cache key for a network-chain rule; the horizon-wildcarded rules take it."""
+    """Cache key for a network-chain rule. Only the horizon-wildcarded rules take it."""
     if rule in ("compose_network", "solve_network", "solve_operations_network"):
         return (rule, (("horizon", horizon),))
     return (rule, ())
@@ -525,7 +515,7 @@ def _sector_targets(run_name: str = "test-elec") -> list[str]:
     Outputs of the four sector heavy rules for a given run name.
 
     None of these rules carry wildcards, so targeting one output per rule pulls
-    all four into the DAG even for an electricity-only config: Snakemake
+    all four into the DAG even for an electricity-only config, since Snakemake
     resolves a directly requested output regardless of sector coupling.
     """
     return [

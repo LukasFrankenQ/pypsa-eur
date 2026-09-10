@@ -60,8 +60,8 @@ validate_scenarios(config, scenarios)
 RDIR = get_rdir(run)
 PROJ_DIR = Path(workflow.snakefile).parent
 
-# Disable the shadow directory under --cache: it would spawn solve jobs as
-# subprocess jobs with their own cache keys.
+# Disable the shadow directory under --cache, since it would spawn solve jobs
+# as subprocess jobs with their own cache keys.
 shadow_config = None if CACHING else get_shadow(run)
 
 shared_resources = run["shared_resources"]["policy"]

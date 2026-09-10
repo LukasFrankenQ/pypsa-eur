@@ -550,11 +550,8 @@ def _transmission_project_files(w):
     """
     List every raw file in each included transmission project's directory.
 
-    Enumerating files rather than the directory itself lets --cache provenance
-    hashing checksum plain files (IOFile.checksum(force=True) crashes with
-    IsADirectoryError on a directory input). A project directory that is
-    missing or contains no files fails here with a named error, matching the
-    clear MissingInputException a directory input used to give at DAG time.
+    Individual files, not the directory itself, since IOFile.checksum(force=True)
+    can't hash a directory input.
     """
     paths = []
     for name, include in config_provider("transmission_projects", "include")(
