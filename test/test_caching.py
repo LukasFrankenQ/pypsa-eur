@@ -123,6 +123,8 @@ def dry_run(
     """Run `snakemake -n --cache` as a subprocess and return its combined output."""
     env = os.environ.copy()
     env["SNAKEMAKE_OUTPUT_CACHE"] = str(cache_dir)
+    # --configfile takes nargs="+", so it would otherwise swallow the targets too;
+    # "--" marks the rest of argv as explicit targets regardless of what precedes it.
     cmd = [
         "snakemake",
         "-n",
@@ -130,6 +132,7 @@ def dry_run(
         "--configfile",
         str(configfile),
         *extra,
+        "--",
         *targets,
     ]
     result = subprocess.run(
@@ -169,9 +172,15 @@ def test_caching_switch_no_cache_lines_without_flag() -> None:
     output = result.stdout + result.stderr
     assert result.returncode == 0
     # Matplotlib's own font-cache banner is unrelated noise; exclude it so this
-    # only fails on genuine Snakemake caching output.
+    # only fails on genuine Snakemake caching output. Snakemake also always notes
+    # that a `cache: True` rule is cache-eligible, independent of --cache: that is
+    # the directive working as intended (constraints.md requires it unconditional),
+    # not the fork behaving differently from upstream.
     relevant_lines = (
-        line for line in output.splitlines() if "matplotlib" not in line.lower()
+        line
+        for line in output.splitlines()
+        if "matplotlib" not in line.lower()
+        and "eligible for caching between workflows" not in line
     )
     assert not any("cach" in line.lower() for line in relevant_lines)
 
@@ -265,3 +274,174 @@ def test_retrieve_cutout_hashes_without_storage_content(cache_dir: Path) -> None
 
     assert provenance_hash
     assert after == before
+
+
+def _renewable_profile_targets(run_name: str = "test-elec") -> list[str]:
+    """Build_renewable_profiles targets for onwind and solar under a given run name."""
+    return [
+        f"resources/{run_name}/profile_onwind.nc",
+        f"resources/{run_name}/profile_solar.nc",
+    ]
+
+
+def _renewable_profile_key(technology: str) -> CacheKey:
+    return ("build_renewable_profiles", (("technology", technology),))
+
+
+# onshore_regions.geojson (a build_renewable_profiles input) is produced through
+# cluster_network -> simplify_network -> base_extended, which pulls in
+# build_transmission_projects and its checked-in data/transmission_projects/<name>
+# directory inputs. Provenance hashing recursively checksums every non-job-generated
+# upstream input (see cache_entries' docstring), and Snakemake's forced checksum
+# (`IOFile.checksum(force=True)`) skips its own directory guard, crashing with
+# IsADirectoryError for any DAG that reaches build_transmission_projects. This is
+# unrelated to the atlite chain under test, so every atlite test disables it here.
+_NO_TRANSMISSION_PROJECTS = {
+    "transmission_projects": {
+        "include": {"tyndp2020": False, "nep": False, "manual": False}
+    }
+}
+
+
+def _atlite_overrides(**extra: dict) -> dict:
+    return {**_NO_TRANSMISSION_PROJECTS, **extra}
+
+
+def test_atlite_renewable_profile_keys_differ_by_technology(cache_dir: Path) -> None:
+    keys = cache_keys(
+        ELEC_CONFIG,
+        _renewable_profile_targets(),
+        cache_dir,
+        overrides=_atlite_overrides(),
+    )
+    assert (
+        keys[_renewable_profile_key("onwind")] != keys[_renewable_profile_key("solar")]
+    )
+
+
+def test_atlite_renewable_profile_key_reacts_only_to_its_own_technology(
+    cache_dir: Path,
+) -> None:
+    baseline = cache_keys(
+        ELEC_CONFIG,
+        _renewable_profile_targets(),
+        cache_dir,
+        overrides=_atlite_overrides(),
+    )
+    overridden = cache_keys(
+        ELEC_CONFIG,
+        _renewable_profile_targets(),
+        cache_dir,
+        overrides=_atlite_overrides(renewable={"solar": {"capacity_per_sqkm": 12345}}),
+    )
+    onwind, solar = _renewable_profile_key("onwind"), _renewable_profile_key("solar")
+    assert overridden[solar] != baseline[solar]
+    assert overridden[onwind] == baseline[onwind]
+
+
+def test_atlite_keys_unaffected_by_run_name(cache_dir: Path) -> None:
+    baseline = cache_keys(
+        ELEC_CONFIG,
+        _renewable_profile_targets(),
+        cache_dir,
+        overrides=_atlite_overrides(),
+    )
+    renamed = cache_keys(
+        ELEC_CONFIG,
+        _renewable_profile_targets("other-name"),
+        cache_dir,
+        overrides=_atlite_overrides(run={"name": "other-name"}),
+    )
+    assert baseline == renamed
+
+
+def _write_no_transmission_projects_configfile(tmp_path: Path) -> Path:
+    """
+    Write a YAML overlay disabling transmission_projects.include (see above).
+
+    Unlike cache_entries/cache_keys (Python API, plain dict overrides), dry_run
+    shells out to the snakemake CLI, whose `--config` flag parses nested values
+    with a string-only YAML loader (so `false` would arrive as the string
+    "false", which is truthy). A real YAML file preserves the boolean type.
+    """
+    path = tmp_path / "no_transmission_projects.yaml"
+    path.write_text(
+        "transmission_projects:\n"
+        "  include:\n"
+        "    tyndp2020: false\n"
+        "    nep: false\n"
+        "    manual: false\n"
+    )
+    return path
+
+
+def test_atlite_dry_run_reports_cache_hit_per_technology(
+    cache_dir: Path, tmp_path: Path
+) -> None:
+    targets = _renewable_profile_targets()
+    entries = cache_entries(
+        ELEC_CONFIG, targets, cache_dir, overrides=_atlite_overrides()
+    )
+    for cachefile in entries[_renewable_profile_key("onwind")]:
+        cachefile.parent.mkdir(parents=True, exist_ok=True)
+        cachefile.touch()
+
+    overlay = _write_no_transmission_projects_configfile(tmp_path)
+    # A bare extra token continues --configfile's own nargs="+" list (see dry_run),
+    # so this is loaded as a second configfile overlaid on ELEC_CONFIG.
+    output = dry_run(ELEC_CONFIG, targets, cache_dir, extra=[str(overlay)])
+
+    assert "resources/test-elec/profile_onwind.nc will be obtained from" in output
+    assert "resources/test-elec/profile_solar.nc will be written to" in output
+
+
+def _has_local_script_import(rule) -> bool:
+    """Return whether a rule's script imports a scripts/ module other than _helpers."""
+    script_path = ROOT / str(rule.script)
+    text = script_path.read_text()
+    return any(
+        line.strip().startswith(("import scripts.", "from scripts."))
+        and "scripts._helpers" not in line
+        for line in text.splitlines()
+    )
+
+
+def test_atlite_chain_rules_are_cache_eligible_without_benchmark() -> None:
+    """
+    Every rule in the atlite chain is cache-eligible, benchmark-free and only
+    depends on scripts/_helpers.py among local scripts modules.
+
+    Cache eligibility and a clean code-dependency surface are prerequisites for
+    the provenance hash to be both computable and correct.
+    """
+    atlite_rule_names = [
+        "determine_availability_matrix",
+        "determine_availability_matrix_MD_UA",
+        "build_renewable_profiles",
+        "build_hydro_profile",
+        "build_line_rating",
+        "build_hac_features",
+    ]
+    with SnakemakeApi(OutputSettings()) as snakemake_api:
+        workflow_api = snakemake_api.workflow(
+            resource_settings=ResourceSettings(cores=1),
+            config_settings=ConfigSettings(configfiles=[ROOT / ELEC_CONFIG], config={}),
+            workflow_settings=WorkflowSettings(),
+            workdir=ROOT,
+        )
+        workflow = workflow_api._workflow
+        rules = {name: workflow.get_rule(name) for name in atlite_rule_names}
+
+        not_cacheable = [
+            name
+            for name, rule in rules.items()
+            if not (rule.cache and rule.cache.output)
+        ]
+        still_benchmarked = [name for name, rule in rules.items() if rule.benchmark]
+        importing_other_scripts = [
+            name for name, rule in rules.items() if _has_local_script_import(rule)
+        ]
+
+    assert not_cacheable == []
+    assert still_benchmarked == []
+    assert importing_other_scripts == []

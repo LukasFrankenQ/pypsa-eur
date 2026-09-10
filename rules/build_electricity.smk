@@ -269,7 +269,11 @@ rule build_ship_raster:
 
 rule determine_availability_matrix_MD_UA:
     """Computes land availability for renewables in Ukraine and Moldova from Copernicus land cover."""
+    cache: True
     input:
+        code_dependencies=code_dependencies(
+            "scripts/determine_availability_matrix_MD_UA.py"
+        ),
         copernicus=rules.retrieve_copernicus_land_cover.output["tif"],
         wdpa=lambda w: (
             rules.retrieve_wdpa.output["gpkg"]
@@ -308,8 +312,6 @@ rule determine_availability_matrix_MD_UA:
         ),
     log:
         logs("determine_availability_matrix_MD_UA_{technology}.log"),
-    benchmark:
-        benchmarks("determine_availability_matrix_MD_UA_{technology}")
     threads: atlite_threads
     resources:
         mem_mb=atlite_mem_mb(5000),
@@ -337,8 +339,10 @@ def input_ua_md_availability_matrix(w):
 
 rule determine_availability_matrix:
     """Computes the share of each cutout grid cell available to a renewable technology from land use data."""
+    cache: True
     input:
         unpack(input_ua_md_availability_matrix),
+        code_dependencies=code_dependencies("scripts/determine_availability_matrix.py"),
         corine=ancient(rules.retrieve_corine.output["tif_file"]),
         natura=lambda w: (
             f"{NATURA_DATASET['folder']}/natura.tiff"
@@ -382,8 +386,6 @@ rule determine_availability_matrix:
         ),
     log:
         logs("determine_availability_matrix_{technology}.log"),
-    benchmark:
-        benchmarks("determine_availability_matrix_{technology}")
     wildcard_constraints:
         technology=r"(?!MD-UA_)[^/]+",
     threads: atlite_threads
@@ -400,7 +402,9 @@ rule determine_availability_matrix:
 
 rule build_renewable_profiles:
     """Computes {wildcards.technology} capacity factors, potentials and grid distances per region."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/build_renewable_profiles.py"),
         availability_matrix=resources("availability_matrix_{technology}.nc"),
         distance_regions=resources("onshore_regions.geojson"),
         resource_regions=lambda w: (
@@ -416,8 +420,6 @@ rule build_renewable_profiles:
         class_regions=resources("regions_by_class_{technology}.geojson"),
     log:
         logs("build_renewable_profile_{technology}.log"),
-    benchmark:
-        benchmarks("build_renewable_profile_{technology}")
     wildcard_constraints:
         technology="(?!hydro).*",  # Any technology other than hydro
     threads: atlite_threads
@@ -494,7 +496,9 @@ if COUNTRY_RUNOFF_DATASET["source"] == "build":
 
 rule build_hydro_profile:
     """Builds hydro inflow time series per country from runoff scaled to EIA generation statistics."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/build_hydro_profile.py"),
         country_shapes=resources("country_shapes.geojson"),
         eia_hydro_generation="data/eia_hydro_annual_generation.csv",
         eia_hydro_capacity="data/eia_hydro_annual_capacity.csv",
@@ -506,8 +510,6 @@ rule build_hydro_profile:
         profile=resources("profile_hydro.nc"),
     log:
         logs("build_hydro_profile.log"),
-    benchmark:
-        benchmarks("build_hydro_profile")
     resources:
         mem_mb=5000,
     params:
@@ -521,7 +523,9 @@ rule build_hydro_profile:
 
 rule build_line_rating:
     """Computes dynamic line rating time series for transmission lines from weather data."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/build_line_rating.py"),
         base_network=resources("networks/base.nc"),
         cutout=lambda w: input_cutout(
             w, config_provider("lines", "dynamic_line_rating", "cutout")(w)
@@ -530,8 +534,6 @@ rule build_line_rating:
         output=resources("dlr.nc"),
     log:
         logs("build_line_rating.log"),
-    benchmark:
-        benchmarks("build_line_rating")
     threads: atlite_threads
     resources:
         mem_mb=atlite_mem_mb(1000),
@@ -650,15 +652,15 @@ rule build_electricity_demand_base:
 
 rule build_hac_features:
     """Aggregates cutout weather data to simplified regions as features for hierarchical clustering."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/build_hac_features.py"),
         cutout=lambda w: input_cutout(w),
         regions=resources("onshore_regions_simplified.geojson"),
     output:
         resources("hac_features.nc"),
     log:
         logs("build_hac_features.log"),
-    benchmark:
-        benchmarks("build_hac_features")
     threads: atlite_threads
     resources:
         mem_mb=10000,
