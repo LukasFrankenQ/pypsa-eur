@@ -510,3 +510,102 @@ def test_network_chain_run_name_leaves_keys_unchanged(cache_dir: Path) -> None:
         overrides={"run": {"name": "other-name"}},
     )
     assert baseline == renamed
+
+
+SECTOR_RULE_NAMES = [
+    "build_population_layouts",
+    "build_daily_heat_demand",
+    "build_temperature_profiles",
+    "build_solar_thermal_profiles",
+]
+
+
+def _sector_targets(run_name: str = "test-elec") -> list[str]:
+    """
+    Outputs of the four sector heavy rules for a given run name.
+
+    None of these rules carry wildcards, so targeting one output per rule pulls
+    all four into the DAG even for an electricity-only config: Snakemake
+    resolves a directly requested output regardless of sector coupling.
+    """
+    return [
+        f"resources/{run_name}/pop_layout_total.nc",
+        f"resources/{run_name}/daily_heat_demand_total.nc",
+        f"resources/{run_name}/temp_soil_total.nc",
+        f"resources/{run_name}/solar_thermal_total.nc",
+    ]
+
+
+def _sector_key(rule: str) -> CacheKey:
+    return (rule, ())
+
+
+def test_sector_rules_are_cache_eligible_without_benchmark() -> None:
+    """
+    Every sector heavy rule is cache-eligible, benchmark-free and only depends
+    on scripts/_helpers.py among local scripts modules.
+    """
+    with SnakemakeApi(OutputSettings()) as snakemake_api:
+        workflow_api = snakemake_api.workflow(
+            resource_settings=ResourceSettings(cores=1),
+            config_settings=ConfigSettings(configfiles=[ROOT / ELEC_CONFIG], config={}),
+            workflow_settings=WorkflowSettings(),
+            workdir=ROOT,
+        )
+        workflow = workflow_api._workflow
+        rules = {name: workflow.get_rule(name) for name in SECTOR_RULE_NAMES}
+
+        not_cacheable = [
+            name
+            for name, rule in rules.items()
+            if not (rule.cache and rule.cache.output)
+        ]
+        still_benchmarked = [name for name, rule in rules.items() if rule.benchmark]
+        importing_other_scripts = [
+            name for name, rule in rules.items() if _has_local_script_import(rule)
+        ]
+
+    assert not_cacheable == []
+    assert still_benchmarked == []
+    assert importing_other_scripts == []
+
+
+def test_sector_keys_present_for_all_four_rules(cache_dir: Path) -> None:
+    """
+    All four sector rules get a cache key.
+
+    The DAG for these targets also pulls in upstream cache-eligible rules
+    (e.g. simplify_network, cluster_network, build_line_rating), so this
+    checks the four expected keys are present rather than an exact key set.
+    """
+    keys = cache_keys(ELEC_CONFIG, _sector_targets(), cache_dir)
+    expected = {_sector_key(name) for name in SECTOR_RULE_NAMES}
+    assert expected <= set(keys)
+
+
+def test_sector_solar_thermal_change_affects_only_that_rule(cache_dir: Path) -> None:
+    targets = _sector_targets()
+    baseline = cache_keys(ELEC_CONFIG, targets, cache_dir)
+    overridden = cache_keys(
+        ELEC_CONFIG,
+        targets,
+        cache_dir,
+        overrides={"solar_thermal": {"clearsky_model": "enhanced"}},
+    )
+    for name in SECTOR_RULE_NAMES:
+        key = _sector_key(name)
+        if name == "build_solar_thermal_profiles":
+            assert overridden[key] != baseline[key]
+        else:
+            assert overridden[key] == baseline[key]
+
+
+def test_sector_run_name_leaves_keys_unchanged(cache_dir: Path) -> None:
+    baseline = cache_keys(ELEC_CONFIG, _sector_targets(), cache_dir)
+    renamed = cache_keys(
+        ELEC_CONFIG,
+        _sector_targets("other-name"),
+        cache_dir,
+        overrides={"run": {"name": "other-name"}},
+    )
+    assert baseline == renamed

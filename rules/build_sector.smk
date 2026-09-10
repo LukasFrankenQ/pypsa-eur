@@ -5,7 +5,9 @@
 
 rule build_population_layouts:
     """Maps population (total, urban, rural) onto weather cutout grid cells from NUTS3 shapes."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/build_population_layouts.py"),
         nuts3_shapes=resources("nuts3_shapes.geojson"),
         urban_percent=rules.retrieve_worldbank_urban_population.output["csv"],
         cutout=lambda w: input_cutout(w),
@@ -15,8 +17,6 @@ rule build_population_layouts:
         pop_layout_rural=resources("pop_layout_rural.nc"),
     log:
         logs("build_population_layouts.log"),
-    benchmark:
-        benchmarks("build_population_layouts")
     threads: 8
     resources:
         mem_mb=20000,
@@ -138,7 +138,9 @@ rule build_transmission_topology:
 
 rule build_daily_heat_demand:
     """Builds daily heat demand time series per region from cutout temperatures and population."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/build_daily_heat_demand.py"),
         pop_layout=resources("pop_layout_total.nc"),
         onshore_regions=resources("onshore_regions.geojson"),
         cutout=lambda w: input_cutout(
@@ -148,8 +150,6 @@ rule build_daily_heat_demand:
         heat_demand=resources("daily_heat_demand_total.nc"),
     log:
         logs("build_daily_heat_demand_total.log"),
-    benchmark:
-        benchmarks("build_daily_heat_demand_total")
     threads: 8
     resources:
         mem_mb=20000,
@@ -187,7 +187,9 @@ rule build_hourly_heat_demand:
 
 rule build_temperature_profiles:
     """Builds population-weighted air and soil temperature time series per clustered region."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/build_temperature_profiles.py"),
         pop_layout=resources("pop_layout_total.nc"),
         onshore_regions=resources("onshore_regions.geojson"),
         cutout=lambda w: input_cutout(
@@ -198,8 +200,6 @@ rule build_temperature_profiles:
         temp_air=resources("temp_air_total.nc"),
     log:
         logs("build_temperature_profiles_total.log"),
-    benchmark:
-        benchmarks("build_temperature_profiles/total")
     threads: 8
     resources:
         mem_mb=20000,
@@ -710,7 +710,9 @@ rule build_direct_heat_source_utilisation_profiles:
 
 rule build_solar_thermal_profiles:
     """Builds solar thermal collector heat generation time series per clustered model region."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/build_solar_thermal_profiles.py"),
         pop_layout=resources("pop_layout_total.nc"),
         onshore_regions=resources("onshore_regions.geojson"),
         cutout=lambda w: input_cutout(w, config_provider("solar_thermal", "cutout")(w)),
@@ -718,8 +720,6 @@ rule build_solar_thermal_profiles:
         solar_thermal=resources("solar_thermal_total.nc"),
     log:
         logs("build_solar_thermal_profiles_total.log"),
-    benchmark:
-        benchmarks("build_solar_thermal_profiles/total")
     threads: 16
     resources:
         mem_mb=20000,
