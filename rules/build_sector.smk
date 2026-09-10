@@ -1506,6 +1506,7 @@ if MOBILITY_PROFILES_DATASET["source"] in ["build"]:
 
     rule build_mobility_profiles:
         """Builds weekly road transport profiles from German BASt vehicle count data."""
+        cache: "hash-omit-storage-content"
         input:
             zip_files=storage(
                 expand(

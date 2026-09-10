@@ -2,7 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
-"""Harness for testing Snakemake's between-workflow caching (--cache) on this workflow.
+"""
+Harness for testing Snakemake's between-workflow caching (--cache) on this workflow.
 
 The helpers here build the DAG through the Snakemake Python API (snakemake.api) with
 a cache directory pointed at a temporary path, and inspect which jobs would read from
@@ -12,10 +13,12 @@ rules import these helpers to assert on cache keys and cache stability.
 
 import os
 import subprocess
+from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
 from snakemake.api import SnakemakeApi
+from snakemake.caching.hash import ProvenanceHashMap
 from snakemake.settings.types import (
     ConfigSettings,
     DAGSettings,
@@ -39,51 +42,60 @@ def cache_entries(
     cache_dir: Path,
     overrides: dict | None = None,
 ) -> dict[CacheKey, list[Path]]:
-    """Build the DAG for targets and return each cacheable job's cache file paths.
+    """
+    Build the DAG for targets and return each cacheable job's cache file paths.
 
     Keyed by (rule name, sorted wildcard items). Only jobs whose rule is marked
     eligible for caching (rule.cache.output) are included. Runs with --cache
     (WorkflowSettings(cache=[])), so a rule's `cache: True` directive is enough
     to make it eligible without naming it explicitly.
     """
+    prior_cache_env = os.environ.get("SNAKEMAKE_OUTPUT_CACHE")
     os.environ["SNAKEMAKE_OUTPUT_CACHE"] = str(cache_dir)
-
-    entries: dict[CacheKey, list[Path]] = {}
-    with SnakemakeApi(OutputSettings()) as snakemake_api:
-        workflow_api = snakemake_api.workflow(
-            resource_settings=ResourceSettings(cores=1),
-            config_settings=ConfigSettings(
-                configfiles=[ROOT / configfile], config=overrides or {}
-            ),
-            workflow_settings=WorkflowSettings(cache=[]),
-            workdir=ROOT,
-        )
-        workflow_api.dag(dag_settings=DAGSettings(targets=targets))
-        workflow = workflow_api._workflow
-        # Mirrors what Workflow.execute() does before _build_dag(), minus actually
-        # running anything: it is what turns on the output file cache and the
-        # per-rule cache flag for --cache.
-        workflow._prepare_dag(
-            forceall=False, ignore_incomplete=False, lock_warn_only=True
-        )
-        workflow._build_dag()
-
-        for job in workflow.dag.jobs:
-            if not (job.rule.cache and job.rule.cache.output):
-                continue
-            key: CacheKey = (job.rule.name, tuple(sorted(job.wildcards.items())))
-            files = workflow.async_run(
-                workflow.output_file_cache.get_outputfiles_and_cachefiles(job)
+    try:
+        entries: dict[CacheKey, list[Path]] = {}
+        with SnakemakeApi(OutputSettings()) as snakemake_api:
+            workflow_api = snakemake_api.workflow(
+                resource_settings=ResourceSettings(cores=1),
+                config_settings=ConfigSettings(
+                    configfiles=[ROOT / configfile], config=overrides or {}
+                ),
+                workflow_settings=WorkflowSettings(cache=[]),
+                workdir=ROOT,
             )
-            entries[key] = [cachefile for _, cachefile in files]
+            workflow_api.dag(dag_settings=DAGSettings(targets=targets))
+            workflow = workflow_api._workflow
+            # Mirrors what Workflow.execute() does before _build_dag(), minus actually
+            # running anything: it is what turns on the output file cache and the
+            # per-rule cache flag for --cache.
+            workflow._prepare_dag(
+                forceall=False, ignore_incomplete=False, lock_warn_only=True
+            )
+            workflow._build_dag()
 
-    return entries
+            for job in workflow.dag.jobs:
+                if not (job.rule.cache and job.rule.cache.output):
+                    continue
+                key: CacheKey = (job.rule.name, tuple(sorted(job.wildcards.items())))
+                files = workflow.async_run(
+                    workflow.output_file_cache.get_outputfiles_and_cachefiles(job)
+                )
+                entries[key] = [cachefile for _, cachefile in files]
+
+        return entries
+    finally:
+        if prior_cache_env is None:
+            os.environ.pop("SNAKEMAKE_OUTPUT_CACHE", None)
+        else:
+            os.environ["SNAKEMAKE_OUTPUT_CACHE"] = prior_cache_env
 
 
 def _provenance_hash(cachefile: Path) -> str:
     """Return the provenance hash prefix of a cache file name."""
     name = cachefile.name
-    end = min((i for i in (name.find("_"), name.find(".")) if i != -1), default=len(name))
+    end = min(
+        (i for i in (name.find("_"), name.find(".")) if i != -1), default=len(name)
+    )
     return name[:end]
 
 
@@ -96,17 +108,30 @@ def cache_keys(
     """Same as cache_entries, but map each job to its provenance hash instead of paths."""
     return {
         key: _provenance_hash(files[0])
-        for key, files in cache_entries(configfile, targets, cache_dir, overrides).items()
+        for key, files in cache_entries(
+            configfile, targets, cache_dir, overrides
+        ).items()
     }
 
 
 def dry_run(
-    configfile: Path, targets: list[str], cache_dir: Path, extra: list[str] = ()
+    configfile: Path,
+    targets: list[str],
+    cache_dir: Path,
+    extra: Sequence[str] = (),
 ) -> str:
     """Run `snakemake -n --cache` as a subprocess and return its combined output."""
     env = os.environ.copy()
     env["SNAKEMAKE_OUTPUT_CACHE"] = str(cache_dir)
-    cmd = ["snakemake", "-n", "--cache", "--configfile", str(configfile), *extra, *targets]
+    cmd = [
+        "snakemake",
+        "-n",
+        "--cache",
+        "--configfile",
+        str(configfile),
+        *extra,
+        *targets,
+    ]
     result = subprocess.run(
         cmd, cwd=ROOT, env=env, capture_output=True, text=True, check=False
     )
@@ -153,3 +178,90 @@ def test_caching_switch_no_cache_lines_without_flag() -> None:
 
 def test_cache_keys_harness_empty_before_any_rule_cached(cache_dir: Path) -> None:
     assert cache_keys(ELEC_CONFIG, SMALL_TARGETS, cache_dir) == {}
+
+
+def _has_storage_input(rule) -> bool:
+    """Return whether any of the rule's raw (unresolved) input items is storage()."""
+    return any(getattr(item, "is_storage", False) for item in rule.input)
+
+
+def test_every_storage_rule_marks_hash_omit_storage_content() -> None:
+    """
+    Every rule with a storage() input must carry the omit-storage-content flag.
+
+    A cached downstream job's provenance hash folds in every upstream job's key.
+    Without the flag, that would content-hash a retrieve rule's storage input,
+    forcing a download even when the server reports no checksum. Iterating
+    `workflow.rules` (populated once the API has parsed the Snakefile) checks
+    every rule that survived this config's `dataset_version(...)` branches, so a
+    future storage-input rule added without the directive fails this test.
+    """
+    with SnakemakeApi(OutputSettings()) as snakemake_api:
+        workflow_api = snakemake_api.workflow(
+            resource_settings=ResourceSettings(cores=1),
+            config_settings=ConfigSettings(configfiles=[ROOT / ELEC_CONFIG], config={}),
+            workflow_settings=WorkflowSettings(),
+            workdir=ROOT,
+        )
+        workflow = workflow_api._workflow
+        offenders = [
+            rule.name
+            for rule in workflow.rules
+            if _has_storage_input(rule)
+            and not (rule.cache and rule.cache.omit_storage_content)
+        ]
+
+    assert offenders == []
+
+
+def test_retrieve_cutout_hashes_without_storage_content(cache_dir: Path) -> None:
+    """
+    Hashing a storage-input job must not need the storage object's content.
+
+    retrieve_cutout's sole input is storage(...). Provenance hashing runs before
+    a job would ever execute and fetch its input, so without
+    `hash-omit-storage-content` it tries to checksum an unretrieved storage
+    placeholder and fails (a "broken symlink" WorkflowError). With the flag, the
+    object's URL is hashed instead: the hash succeeds and hashing itself fetches
+    nothing new under .snakemake/storage.
+    """
+    prior_cache_env = os.environ.get("SNAKEMAKE_OUTPUT_CACHE")
+    os.environ["SNAKEMAKE_OUTPUT_CACHE"] = str(cache_dir)
+    try:
+        with SnakemakeApi(OutputSettings()) as snakemake_api:
+            workflow_api = snakemake_api.workflow(
+                resource_settings=ResourceSettings(cores=1),
+                config_settings=ConfigSettings(
+                    configfiles=[ROOT / ELEC_CONFIG], config={}
+                ),
+                workflow_settings=WorkflowSettings(cache=[]),
+                workdir=ROOT,
+            )
+            workflow = workflow_api._workflow
+            rule = workflow.get_rule("retrieve_cutout")
+            cutout = workflow.config["atlite"]["default_cutout"]
+            target = str(rule.output[0]).format(cutout=cutout)
+
+            workflow_api.dag(dag_settings=DAGSettings(targets=[target]))
+            workflow._prepare_dag(
+                forceall=False, ignore_incomplete=False, lock_warn_only=True
+            )
+            workflow._build_dag()
+
+            job = next(j for j in workflow.dag.jobs if j.rule.name == "retrieve_cutout")
+            storage_dir = ROOT / ".snakemake" / "storage"
+            before = set(storage_dir.rglob("*")) if storage_dir.exists() else set()
+
+            provenance_hash = workflow.async_run(
+                ProvenanceHashMap().get_provenance_hash(job)
+            )
+
+            after = set(storage_dir.rglob("*")) if storage_dir.exists() else set()
+    finally:
+        if prior_cache_env is None:
+            os.environ.pop("SNAKEMAKE_OUTPUT_CACHE", None)
+        else:
+            os.environ["SNAKEMAKE_OUTPUT_CACHE"] = prior_cache_env
+
+    assert provenance_hash
+    assert after == before
