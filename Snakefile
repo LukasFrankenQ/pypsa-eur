@@ -7,6 +7,7 @@ import yaml
 from os.path import normpath, exists, join
 from shutil import copyfile, move, rmtree
 from dotenv import load_dotenv
+from snakemake.exceptions import WorkflowError
 from snakemake.utils import min_version
 
 load_dotenv()
@@ -44,6 +45,14 @@ validated = validate_config(config)
 normalize_config(config, validated)
 
 run = config["run"]
+
+# True when the workflow was invoked with --cache (any rule list, including none).
+CACHING = workflow.workflow_settings.cache is not None
+if CACHING and run["scenarios"]["enable"]:
+    raise WorkflowError(
+        "Between-workflow caching (--cache) does not support run.scenarios.enable"
+    )
+
 scenarios = get_scenarios(run)
 
 validate_scenarios(config, scenarios)
@@ -51,7 +60,9 @@ validate_scenarios(config, scenarios)
 RDIR = get_rdir(run)
 PROJ_DIR = Path(workflow.snakefile).parent
 
-shadow_config = get_shadow(run)
+# Disable the shadow directory under --cache: it would spawn solve jobs as
+# subprocess jobs with their own cache keys.
+shadow_config = None if CACHING else get_shadow(run)
 
 shared_resources = run["shared_resources"]["policy"]
 exclude_from_shared = run["shared_resources"]["exclude"]

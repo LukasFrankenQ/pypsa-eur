@@ -19,6 +19,15 @@ from scripts._helpers import load_data_versions
 from snakemake.utils import update_config
 
 
+def code_dependencies(*modules: str) -> list[str]:
+    """Return the code inputs a cached rule's provenance hash must cover.
+
+    modules are the rule's own script paths (e.g. "scripts/build_foo.py"), given
+    in addition to the shared helpers and the locked environment.
+    """
+    return ["scripts/_helpers.py", "pixi.lock", *modules]
+
+
 def navigate_config(config, keys, default=None):
     """Retrieve a nested value from a dictionary using a tuple of keys."""
     value = config
