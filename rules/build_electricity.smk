@@ -546,21 +546,40 @@ rule build_line_rating:
         scripts("build_line_rating.py")
 
 
+def _transmission_project_files(w):
+    """
+    List every raw file in each included transmission project's directory.
+
+    Enumerating files rather than the directory itself lets --cache provenance
+    hashing checksum plain files (IOFile.checksum(force=True) crashes with
+    IsADirectoryError on a directory input). A project directory that is
+    missing or contains no files fails here with a named error, matching the
+    clear MissingInputException a directory input used to give at DAG time.
+    """
+    paths = []
+    for name, include in config_provider("transmission_projects", "include")(
+        w
+    ).items():
+        if not include:
+            continue
+        project_dir = Path("data/transmission_projects", name)
+        files = sorted(str(p) for p in project_dir.rglob("*") if p.is_file())
+        if not files:
+            raise WorkflowError(
+                f"Transmission project '{name}' is included but "
+                f"'{project_dir}' does not exist or contains no files."
+            )
+        paths.extend(files)
+    return paths
+
+
 rule build_transmission_projects:
     """Collects, deduplicates and maps transmission projects onto base network buses."""
     input:
         base_network=resources("networks/base.nc"),
         offshore_shapes=resources("offshore_shapes.geojson"),
         europe_shape=resources("europe_shape.geojson"),
-        transmission_projects=lambda w: sorted(
-            str(p)
-            for name, include in config_provider("transmission_projects", "include")(
-                w
-            ).items()
-            if include
-            for p in Path("data/transmission_projects", name).rglob("*")
-            if p.is_file()
-        ),
+        transmission_projects=_transmission_project_files,
     output:
         new_lines=resources("transmission_projects/new_lines.csv"),
         new_links=resources("transmission_projects/new_links.csv"),

@@ -529,13 +529,13 @@ if __name__ == "__main__":
         for project, include in transmission_projects["include"].items()
         if include
     ]
-    # transmission_projects lists the files inside each included project
-    # directory (not the directories themselves, so provenance hashing under
-    # --cache can checksum plain files); recover the directory each project's
-    # files live in by matching the project name against a path segment.
-    paths = snakemake.input.transmission_projects
+    # snakemake.input.transmission_projects lists the files inside each included
+    # project directory (not the directories themselves, so provenance hashing
+    # under --cache can checksum plain files instead of a directory); the
+    # directory itself is fully determined by the project name, so derive it
+    # directly rather than matching it back out of that file list.
     for project in projects:
-        path = next(str(Path(p).parent) for p in paths if Path(p).parent.name == project)
+        path = str(Path("data/transmission_projects", project))
         new_lines_df, new_links_df, adjust_lines_df, adjust_links_df, new_buses_df = (
             add_projects(
                 n,
