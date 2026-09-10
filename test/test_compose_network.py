@@ -381,7 +381,6 @@ def test_concatenate_basic_two_horizons():
     n1.add("Bus", "bus1")
     n1.add("Generator", "gen1", bus="bus1", carrier="solar", p_nom=100)
     n1.snapshot_weightings["objective"] = 1.0
-    n1.meta = {"horizon": 2030}
     n1.investment_periods = [2030]
 
     # Create second horizon network (2040)
@@ -421,7 +420,6 @@ def test_concatenate_three_horizons():
     n1.add("Bus", "bus1")
     n1.add("Generator", "gen1", bus="bus1", carrier="solar", p_nom=100)
     n1.snapshot_weightings["objective"] = 1.0
-    n1.meta = {"horizon": 2030}
     n1.investment_periods = [2030]
 
     # Second horizon (2040)
@@ -469,7 +467,6 @@ def test_concatenate_with_time_series():
     n1.add("Bus", "bus1")
     n1.add("Generator", "gen1", bus="bus1", carrier="solar", p_nom=100)
     n1.snapshot_weightings["objective"] = 1.0
-    n1.meta = {"horizon": 2030}
     n1.investment_periods = [2030]
 
     # Second horizon with two generators
@@ -501,7 +498,6 @@ def test_concatenate_with_stores():
     n1.add("Bus", "bus1")
     n1.add("Store", "battery", bus="bus1", e_cyclic=True, e_nom=100)
     n1.snapshot_weightings["objective"] = 1.0
-    n1.meta = {"horizon": 2030}
     n1.investment_periods = [2030]
 
     # Second horizon with additional store
@@ -538,7 +534,6 @@ def test_concatenate_with_links():
     n1.add("Bus", "bus2")
     n1.add("Link", "link1", bus0="bus1", bus1="bus2", efficiency=0.9, p_nom=1000)
     n1.snapshot_weightings["objective"] = 1.0
-    n1.meta = {"horizon": 2030}
     n1.investment_periods = [2030]
 
     # Second horizon with new link
@@ -560,30 +555,6 @@ def test_concatenate_with_links():
     assert "link2" in n_result.links.index
 
 
-def test_concatenate_preserves_metadata():
-    """Test that network metadata is preserved."""
-    # First horizon
-    n1 = pypsa.Network()
-    n1.set_snapshots(pd.date_range("2030-01-01", periods=2, freq="h"))
-    n1.add("Bus", "bus1")
-    n1.snapshot_weightings["objective"] = 1.0
-    n1.meta = {"horizon": 2030, "custom_key": "value1"}
-    n1.investment_periods = [2030]
-
-    # Second horizon
-    n2 = pypsa.Network()
-    n2.set_snapshots(pd.date_range("2040-01-01", periods=2, freq="h"))
-    n2.add("Bus", "bus1")
-    n2.snapshot_weightings["objective"] = 1.0
-    n2.investment_periods = [2040]
-
-    # Concatenate
-    n_result = concatenate_network_with_previous(n1, n2, 2040)
-
-    # Check that metadata from first network is preserved
-    assert "custom_key" in n_result.meta
-
-
 def test_concatenate_static_to_time_varying():
     """Test that static attributes are properly converted to time series when needed."""
     # First horizon with static marginal_cost
@@ -592,7 +563,6 @@ def test_concatenate_static_to_time_varying():
     n1.add("Bus", "bus1")
     n1.add("Generator", "gen1", bus="bus1", carrier="gas", marginal_cost=50.0)
     n1.snapshot_weightings["objective"] = 1.0
-    n1.meta = {"horizon": 2030}
     n1.investment_periods = [2030]
 
     # Second horizon with new gen2

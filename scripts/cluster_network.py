@@ -761,7 +761,6 @@ if __name__ == "__main__":
     nc.buses["location"] = nc.buses.index
     nc.buses["unit"] = "MWh_el"
 
-    nc.meta["snakemake_config"] = dict(snakemake.config)
     nc.export_to_netcdf(snakemake.output.network)
 
     logger.info(

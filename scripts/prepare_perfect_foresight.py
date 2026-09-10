@@ -112,8 +112,6 @@ def concatenate_network_with_previous(
                 expanded.loc[current_horizon] = current_values[to_densify].to_numpy()
                 c.dynamic[attr] = pd.concat([c.dynamic[attr], expanded], axis=1)
 
-    n.meta = {**n_previous.meta, **n_current.meta}
-
     snapshot_periods = list(n.snapshots.get_level_values("period").unique())
     investment_periods_list = list(n.investment_periods)
 

@@ -82,10 +82,10 @@ if __name__ == "__main__":
                 horizon=cf_operations["horizon"],
                 overlap=cf_operations["overlap"],
             )
-            n.config = snakemake.config
             n.params = snakemake.params
             all_kwargs["extra_functionality"] = partial(
                 extra_functionality,
+                config=snakemake.config,
                 planning_horizons=planning_horizons,
                 snakemake=snakemake,
             )
@@ -112,7 +112,4 @@ if __name__ == "__main__":
 
     logger.info(f"Maximum memory usage: {mem.mem_usage}")
 
-    n.meta["snakemake_config"] = dict(
-        snakemake.config, wildcards=dict(snakemake.wildcards)
-    )
     n.export_to_netcdf(snakemake.output.network)

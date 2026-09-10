@@ -384,3 +384,129 @@ def test_atlite_chain_rules_are_cache_eligible_without_benchmark() -> None:
     assert not_cacheable == []
     assert still_benchmarked == []
     assert importing_other_scripts == []
+
+
+NETWORK_CHAIN_RULE_NAMES = [
+    "simplify_network",
+    "cluster_network",
+    "compose_network",
+    "solve_network",
+    "solve_operations_network",
+]
+
+
+def _network_chain_targets(
+    run_name: str = "test-elec", horizon: str = "2050"
+) -> list[str]:
+    """Outputs of the five network-chain rules for a given run name and horizon."""
+    return [
+        f"resources/{run_name}/networks/simplified.nc",
+        f"resources/{run_name}/networks/clustered.nc",
+        f"resources/{run_name}/networks/composed_{horizon}.nc",
+        f"results/{run_name}/networks/solved_{horizon}.nc",
+        f"results/{run_name}/networks/operations_{horizon}.nc",
+    ]
+
+
+def _network_chain_key(rule: str, horizon: str = "2050") -> CacheKey:
+    """Cache key for a network-chain rule; the horizon-wildcarded rules take it."""
+    if rule in ("compose_network", "solve_network", "solve_operations_network"):
+        return (rule, (("horizon", horizon),))
+    return (rule, ())
+
+
+def test_network_chain_rules_are_cache_eligible_without_benchmark_or_shadow() -> None:
+    """
+    Every network-chain rule is cache-eligible and benchmark-free, and building
+    the DAG under --cache resolves their shadow directive to None.
+
+    simplify_network and cluster_network import each other's module, which is
+    expected (unlike the atlite chain) and covered by their code_dependencies
+    input instead of a zero-local-import rule.
+    """
+    with SnakemakeApi(OutputSettings()) as snakemake_api:
+        workflow_api = snakemake_api.workflow(
+            resource_settings=ResourceSettings(cores=1),
+            config_settings=ConfigSettings(configfiles=[ROOT / ELEC_CONFIG], config={}),
+            workflow_settings=WorkflowSettings(cache=[]),
+            workdir=ROOT,
+        )
+        workflow = workflow_api._workflow
+        rules = {name: workflow.get_rule(name) for name in NETWORK_CHAIN_RULE_NAMES}
+
+        not_cacheable = [
+            name
+            for name, rule in rules.items()
+            if not (rule.cache and rule.cache.output)
+        ]
+        still_benchmarked = [name for name, rule in rules.items() if rule.benchmark]
+        still_shadowed = [name for name, rule in rules.items() if rule.shadow_depth]
+
+    assert not_cacheable == []
+    assert still_benchmarked == []
+    assert still_shadowed == []
+
+
+def test_network_chain_solver_name_changes_cluster_not_simplify(
+    cache_dir: Path,
+) -> None:
+    targets = _network_chain_targets()
+    baseline = cache_keys(ELEC_CONFIG, targets, cache_dir)
+    overridden = cache_keys(
+        ELEC_CONFIG,
+        targets,
+        cache_dir,
+        overrides={"solving": {"solver": {"name": "cbc"}}},
+    )
+    cluster, simplify = (
+        _network_chain_key("cluster_network"),
+        _network_chain_key("simplify_network"),
+    )
+    assert overridden[cluster] != baseline[cluster]
+    assert overridden[simplify] == baseline[simplify]
+
+
+def test_network_chain_line_types_change_simplify_and_downstream(
+    cache_dir: Path,
+) -> None:
+    targets = _network_chain_targets()
+    baseline = cache_keys(ELEC_CONFIG, targets, cache_dir)
+    overridden = cache_keys(
+        ELEC_CONFIG,
+        targets,
+        cache_dir,
+        overrides={"lines": {"types": {380.0: "94-AL1/15-ST1A 20.0"}}},
+    )
+    for rule in NETWORK_CHAIN_RULE_NAMES:
+        key = _network_chain_key(rule)
+        assert overridden[key] != baseline[key], rule
+
+
+def test_network_chain_tech_colors_changes_compose_not_cluster(
+    cache_dir: Path,
+) -> None:
+    targets = _network_chain_targets()
+    baseline = cache_keys(ELEC_CONFIG, targets, cache_dir)
+    overridden = cache_keys(
+        ELEC_CONFIG,
+        targets,
+        cache_dir,
+        overrides={"plotting": {"tech_colors": {"solar": "#000000"}}},
+    )
+    compose, cluster = (
+        _network_chain_key("compose_network"),
+        _network_chain_key("cluster_network"),
+    )
+    assert overridden[compose] != baseline[compose]
+    assert overridden[cluster] == baseline[cluster]
+
+
+def test_network_chain_run_name_leaves_keys_unchanged(cache_dir: Path) -> None:
+    baseline = cache_keys(ELEC_CONFIG, _network_chain_targets(), cache_dir)
+    renamed = cache_keys(
+        ELEC_CONFIG,
+        _network_chain_targets("other-name"),
+        cache_dir,
+        overrides={"run": {"name": "other-name"}},
+    )
+    assert baseline == renamed

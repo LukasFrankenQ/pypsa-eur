@@ -228,15 +228,22 @@ def get_compose_inputs(w):
             raise ValueError(f"Invalid foresight type: {foresight}")
 
     # imported by compose_network.py; listed so code changes trigger reruns
-    inputs["code_dependencies"] = [
+    inputs["code_dependencies"] = code_dependencies(
+        "scripts/compose_network.py",
         "scripts/add_electricity.py",
         "scripts/add_existing_baseyear.py",
         "scripts/add_brownfield.py",
         "scripts/prepare_network.py",
         "scripts/prepare_perfect_foresight.py",
         "scripts/prepare_sector_network.py",
-        "scripts/_helpers.py",
-    ]
+        "scripts/co2_budget.py",
+        "scripts/build_co2_totals.py",
+        "scripts/build_transport_demand.py",
+        "scripts/build_energy_totals.py",
+        "scripts/definitions/heat_sector.py",
+        "scripts/definitions/heat_system.py",
+        "scripts/definitions/heat_system_type.py",
+    )
 
     return inputs
 
@@ -244,14 +251,13 @@ def get_compose_inputs(w):
 # Main composition rule - combines all network building steps
 rule compose_network:
     """Assembles the full network by adding electricity and sector components to the clustered grid."""
+    cache: True
     input:
         unpack(get_compose_inputs),
     output:
         resources("networks/composed_{horizon}.nc"),
     log:
         logs("compose_network_{horizon}.log"),
-    benchmark:
-        benchmarks("compose_network_{horizon}")
     threads: 1
     resources:
         mem_mb=10000,

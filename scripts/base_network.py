@@ -1761,7 +1761,6 @@ if __name__ == "__main__":
     )
 
     # Export network
-    n.meta["snakemake_config"] = snakemake.config
     n.export_to_netcdf(snakemake.output.base_network)
 
     # Export shapes

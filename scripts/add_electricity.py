@@ -148,7 +148,7 @@ def sanitize_carriers(n: pypsa.Network, nice_names: dict, tech_colors: dict) -> 
 
     The function ensures that all unique carrier names are present in the network's
     carriers attribute, and adds nice names and colors for each carrier according
-    to the provided configuration dictionary.
+    to the provided nice names and tech colors.
 
     Parameters
     ----------
@@ -167,7 +167,7 @@ def sanitize_carriers(n: pypsa.Network, nice_names: dict, tech_colors: dict) -> 
 
     Warnings
     --------
-    Raises a warning if any carrier's "tech_colors" are not defined in the config dictionary.
+    Raises a warning if any carrier's "tech_colors" are not defined in tech_colors.
     """
 
     for c in n.components:

@@ -720,7 +720,11 @@ rule process_cost_data:
 
 rule simplify_network:
     """Maps the network to a single 380 kV layer, collapses HVDC chains and removes stubs."""
+    cache: True
     input:
+        code_dependencies=code_dependencies(
+            "scripts/simplify_network.py", "scripts/cluster_network.py"
+        ),
         network=resources("networks/base_extended.nc"),
         onshore_regions=resources("onshore_regions_base.geojson"),
         offshore_regions=resources("offshore_regions_base.geojson"),
@@ -732,8 +736,6 @@ rule simplify_network:
         busmap=resources("busmap_simplify_network.csv"),
     log:
         logs("simplify_network.log"),
-    benchmark:
-        benchmarks("simplify_network_b")
     threads: 1
     resources:
         mem_mb=12000,
@@ -782,8 +784,10 @@ def input_custom_busmap(w):
 
 rule cluster_network:
     """Clusters the simplified network to the configured number of buses and regions."""
+    cache: True
     input:
         unpack(input_custom_busmap),
+        code_dependencies=code_dependencies("scripts/cluster_network.py"),
         network=resources("networks/simplified.nc"),
         admin_shapes=resources("admin_shapes.geojson"),
         onshore_regions=resources("onshore_regions_simplified.geojson"),
@@ -803,8 +807,6 @@ rule cluster_network:
         linemap=resources("linemap_cluster_network.csv"),
     log:
         logs("cluster_network.log"),
-    benchmark:
-        benchmarks("cluster_network")
     threads: 1
     resources:
         mem_mb=10000,
