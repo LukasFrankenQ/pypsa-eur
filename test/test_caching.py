@@ -288,32 +288,8 @@ def _renewable_profile_key(technology: str) -> CacheKey:
     return ("build_renewable_profiles", (("technology", technology),))
 
 
-# onshore_regions.geojson (a build_renewable_profiles input) is produced through
-# cluster_network -> simplify_network -> base_extended, which pulls in
-# build_transmission_projects and its checked-in data/transmission_projects/<name>
-# directory inputs. Provenance hashing recursively checksums every non-job-generated
-# upstream input (see cache_entries' docstring), and Snakemake's forced checksum
-# (`IOFile.checksum(force=True)`) skips its own directory guard, crashing with
-# IsADirectoryError for any DAG that reaches build_transmission_projects. This is
-# unrelated to the atlite chain under test, so every atlite test disables it here.
-_NO_TRANSMISSION_PROJECTS = {
-    "transmission_projects": {
-        "include": {"tyndp2020": False, "nep": False, "manual": False}
-    }
-}
-
-
-def _atlite_overrides(**extra: dict) -> dict:
-    return {**_NO_TRANSMISSION_PROJECTS, **extra}
-
-
 def test_atlite_renewable_profile_keys_differ_by_technology(cache_dir: Path) -> None:
-    keys = cache_keys(
-        ELEC_CONFIG,
-        _renewable_profile_targets(),
-        cache_dir,
-        overrides=_atlite_overrides(),
-    )
+    keys = cache_keys(ELEC_CONFIG, _renewable_profile_targets(), cache_dir)
     assert (
         keys[_renewable_profile_key("onwind")] != keys[_renewable_profile_key("solar")]
     )
@@ -322,17 +298,12 @@ def test_atlite_renewable_profile_keys_differ_by_technology(cache_dir: Path) -> 
 def test_atlite_renewable_profile_key_reacts_only_to_its_own_technology(
     cache_dir: Path,
 ) -> None:
-    baseline = cache_keys(
-        ELEC_CONFIG,
-        _renewable_profile_targets(),
-        cache_dir,
-        overrides=_atlite_overrides(),
-    )
+    baseline = cache_keys(ELEC_CONFIG, _renewable_profile_targets(), cache_dir)
     overridden = cache_keys(
         ELEC_CONFIG,
         _renewable_profile_targets(),
         cache_dir,
-        overrides=_atlite_overrides(renewable={"solar": {"capacity_per_sqkm": 12345}}),
+        overrides={"renewable": {"solar": {"capacity_per_sqkm": 12345}}},
     )
     onwind, solar = _renewable_profile_key("onwind"), _renewable_profile_key("solar")
     assert overridden[solar] != baseline[solar]
@@ -340,56 +311,24 @@ def test_atlite_renewable_profile_key_reacts_only_to_its_own_technology(
 
 
 def test_atlite_keys_unaffected_by_run_name(cache_dir: Path) -> None:
-    baseline = cache_keys(
-        ELEC_CONFIG,
-        _renewable_profile_targets(),
-        cache_dir,
-        overrides=_atlite_overrides(),
-    )
+    baseline = cache_keys(ELEC_CONFIG, _renewable_profile_targets(), cache_dir)
     renamed = cache_keys(
         ELEC_CONFIG,
         _renewable_profile_targets("other-name"),
         cache_dir,
-        overrides=_atlite_overrides(run={"name": "other-name"}),
+        overrides={"run": {"name": "other-name"}},
     )
     assert baseline == renamed
 
 
-def _write_no_transmission_projects_configfile(tmp_path: Path) -> Path:
-    """
-    Write a YAML overlay disabling transmission_projects.include (see above).
-
-    Unlike cache_entries/cache_keys (Python API, plain dict overrides), dry_run
-    shells out to the snakemake CLI, whose `--config` flag parses nested values
-    with a string-only YAML loader (so `false` would arrive as the string
-    "false", which is truthy). A real YAML file preserves the boolean type.
-    """
-    path = tmp_path / "no_transmission_projects.yaml"
-    path.write_text(
-        "transmission_projects:\n"
-        "  include:\n"
-        "    tyndp2020: false\n"
-        "    nep: false\n"
-        "    manual: false\n"
-    )
-    return path
-
-
-def test_atlite_dry_run_reports_cache_hit_per_technology(
-    cache_dir: Path, tmp_path: Path
-) -> None:
+def test_atlite_dry_run_reports_cache_hit_per_technology(cache_dir: Path) -> None:
     targets = _renewable_profile_targets()
-    entries = cache_entries(
-        ELEC_CONFIG, targets, cache_dir, overrides=_atlite_overrides()
-    )
+    entries = cache_entries(ELEC_CONFIG, targets, cache_dir)
     for cachefile in entries[_renewable_profile_key("onwind")]:
         cachefile.parent.mkdir(parents=True, exist_ok=True)
         cachefile.touch()
 
-    overlay = _write_no_transmission_projects_configfile(tmp_path)
-    # A bare extra token continues --configfile's own nargs="+" list (see dry_run),
-    # so this is loaded as a second configfile overlaid on ELEC_CONFIG.
-    output = dry_run(ELEC_CONFIG, targets, cache_dir, extra=[str(overlay)])
+    output = dry_run(ELEC_CONFIG, targets, cache_dir)
 
     assert "resources/test-elec/profile_onwind.nc will be obtained from" in output
     assert "resources/test-elec/profile_solar.nc will be written to" in output

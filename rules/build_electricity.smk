@@ -552,13 +552,15 @@ rule build_transmission_projects:
         base_network=resources("networks/base.nc"),
         offshore_shapes=resources("offshore_shapes.geojson"),
         europe_shape=resources("europe_shape.geojson"),
-        transmission_projects=lambda w: [
-            "data/transmission_projects/" + name
+        transmission_projects=lambda w: sorted(
+            str(p)
             for name, include in config_provider("transmission_projects", "include")(
                 w
             ).items()
             if include
-        ],
+            for p in Path("data/transmission_projects", name).rglob("*")
+            if p.is_file()
+        ),
     output:
         new_lines=resources("transmission_projects/new_lines.csv"),
         new_links=resources("transmission_projects/new_links.csv"),
