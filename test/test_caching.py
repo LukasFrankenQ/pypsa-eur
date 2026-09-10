@@ -279,14 +279,18 @@ def test_every_storage_rule_marks_hash_omit_storage_content_branch_blind() -> No
     active config selects.
     """
     offenders = []
+    storage_input_rule_count = 0
     for path in sorted((ROOT / "rules").glob("*.smk")):
         for name, block in _rule_blocks(path.read_text()):
-            if (
-                "storage(" in _input_section(block)
-                and "hash-omit-storage-content" not in block
-            ):
+            if "storage(" not in _input_section(block):
+                continue
+            storage_input_rule_count += 1
+            if "hash-omit-storage-content" not in block:
                 offenders.append(f"{path.name}:{name}")
 
+    # Guards against the regexes or glob silently stopping matching, which
+    # would otherwise make the offenders check below pass vacuously.
+    assert storage_input_rule_count > 0
     assert offenders == []
 
 
