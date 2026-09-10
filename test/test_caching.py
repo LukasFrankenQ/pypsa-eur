@@ -11,6 +11,7 @@ cache.
 """
 
 import os
+import re
 import subprocess
 from collections.abc import Sequence
 from pathlib import Path
@@ -216,7 +217,82 @@ def test_every_storage_rule_marks_hash_omit_storage_content() -> None:
     assert offenders == []
 
 
-def test_retrieve_cutout_hashes_without_storage_content(cache_dir: Path) -> None:
+RULE_HEADER_RE = re.compile(r"^\s*rule\s+(\w+)\s*:\s*$")
+DIRECTIVE_RE = re.compile(
+    r"^\s*(output|params|log|threads|resources|shell|script|run|conda|"
+    r"notebook|message|benchmark|wildcard_constraints|priority|retries|group|"
+    r"localrule|handover|envmodules|cache|shadow):"
+)
+INPUT_HEADER_RE = re.compile(r"^\s*input:\s*$")
+
+
+def _rule_blocks(text: str) -> list[tuple[str, str]]:
+    """
+    Split a rules/*.smk file's text into (name, block text) pairs.
+
+    A block starts at a `rule <name>:` line and runs to the line before the
+    next one, or the end of the file. Matching ignores the line's own
+    indentation, since a rule is often nested inside an `if` block that
+    gates an alternate data source.
+    """
+    lines = text.splitlines()
+    starts = [
+        (i, m.group(1))
+        for i, line in enumerate(lines)
+        if (m := RULE_HEADER_RE.match(line))
+    ]
+    bounds = [start for start, _ in starts] + [len(lines)]
+    return [
+        (name, "\n".join(lines[bounds[idx] : bounds[idx + 1]]))
+        for idx, (_, name) in enumerate(starts)
+    ]
+
+
+def _input_section(block: str) -> str:
+    """Return a rule block's input: section text, or "" if it has none."""
+    lines = block.splitlines()
+    start = next(
+        (i for i, line in enumerate(lines) if INPUT_HEADER_RE.match(line)), None
+    )
+    if start is None:
+        return ""
+    end = next(
+        (
+            i
+            for i, line in enumerate(lines[start + 1 :], start + 1)
+            if DIRECTIVE_RE.match(line)
+        ),
+        len(lines),
+    )
+    return "\n".join(lines[start + 1 : end])
+
+
+def test_every_storage_rule_marks_hash_omit_storage_content_branch_blind() -> None:
+    """
+    Text-level companion to test_every_storage_rule_marks_hash_omit_storage_content.
+
+    That test only sees rules reachable from the elec test config's DAG, so a
+    rule gated behind a config branch that config does not take (an alternate
+    dataset source, for example) never gets its storage() input checked. This
+    scans the raw rules/*.smk text instead, with no DAG build and no
+    snakemake import, so it covers every branch regardless of which one the
+    active config selects.
+    """
+    offenders = []
+    for path in sorted((ROOT / "rules").glob("*.smk")):
+        for name, block in _rule_blocks(path.read_text()):
+            if (
+                "storage(" in _input_section(block)
+                and "hash-omit-storage-content" not in block
+            ):
+                offenders.append(f"{path.name}:{name}")
+
+    assert offenders == []
+
+
+def test_retrieve_cutout_hashes_without_storage_content(
+    cache_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """
     Hashing a storage-input job must not need the storage object's content.
 
@@ -224,43 +300,34 @@ def test_retrieve_cutout_hashes_without_storage_content(cache_dir: Path) -> None
     so without `hash-omit-storage-content` it tries to checksum an unretrieved
     storage placeholder and fails with a broken-symlink WorkflowError.
     """
-    prior_cache_env = os.environ.get("SNAKEMAKE_OUTPUT_CACHE")
-    os.environ["SNAKEMAKE_OUTPUT_CACHE"] = str(cache_dir)
-    try:
-        with SnakemakeApi(OutputSettings()) as snakemake_api:
-            workflow_api = snakemake_api.workflow(
-                resource_settings=ResourceSettings(cores=1),
-                config_settings=ConfigSettings(
-                    configfiles=[ROOT / ELEC_CONFIG], config={}
-                ),
-                workflow_settings=WorkflowSettings(cache=[]),
-                workdir=ROOT,
-            )
-            workflow = workflow_api._workflow
-            rule = workflow.get_rule("retrieve_cutout")
-            cutout = workflow.config["atlite"]["default_cutout"]
-            target = str(rule.output[0]).format(cutout=cutout)
+    monkeypatch.setenv("SNAKEMAKE_OUTPUT_CACHE", str(cache_dir))
+    with SnakemakeApi(OutputSettings()) as snakemake_api:
+        workflow_api = snakemake_api.workflow(
+            resource_settings=ResourceSettings(cores=1),
+            config_settings=ConfigSettings(configfiles=[ROOT / ELEC_CONFIG], config={}),
+            workflow_settings=WorkflowSettings(cache=[]),
+            workdir=ROOT,
+        )
+        workflow = workflow_api._workflow
+        rule = workflow.get_rule("retrieve_cutout")
+        cutout = workflow.config["atlite"]["default_cutout"]
+        target = str(rule.output[0]).format(cutout=cutout)
 
-            workflow_api.dag(dag_settings=DAGSettings(targets=[target]))
-            workflow._prepare_dag(
-                forceall=False, ignore_incomplete=False, lock_warn_only=True
-            )
-            workflow._build_dag()
+        workflow_api.dag(dag_settings=DAGSettings(targets=[target]))
+        workflow._prepare_dag(
+            forceall=False, ignore_incomplete=False, lock_warn_only=True
+        )
+        workflow._build_dag()
 
-            job = next(j for j in workflow.dag.jobs if j.rule.name == "retrieve_cutout")
-            storage_dir = ROOT / ".snakemake" / "storage"
-            before = set(storage_dir.rglob("*")) if storage_dir.exists() else set()
+        job = next(j for j in workflow.dag.jobs if j.rule.name == "retrieve_cutout")
+        storage_dir = ROOT / ".snakemake" / "storage"
+        before = set(storage_dir.rglob("*")) if storage_dir.exists() else set()
 
-            provenance_hash = workflow.async_run(
-                ProvenanceHashMap().get_provenance_hash(job)
-            )
+        provenance_hash = workflow.async_run(
+            ProvenanceHashMap().get_provenance_hash(job)
+        )
 
-            after = set(storage_dir.rglob("*")) if storage_dir.exists() else set()
-    finally:
-        if prior_cache_env is None:
-            os.environ.pop("SNAKEMAKE_OUTPUT_CACHE", None)
-        else:
-            os.environ["SNAKEMAKE_OUTPUT_CACHE"] = prior_cache_env
+        after = set(storage_dir.rglob("*")) if storage_dir.exists() else set()
 
     assert provenance_hash
     assert after == before

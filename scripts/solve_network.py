@@ -1503,9 +1503,7 @@ if __name__ == "__main__":
         skip_iterations = True
         logger.info("No expandable lines found. Skipping iterative solving.")
 
-    logging_frequency = snakemake.config.get("solving", {}).get(
-        "mem_logging_frequency", 30
-    )
+    logging_frequency = snakemake.params.solving.get("mem_logging_frequency", 30)
 
     # Solve network based on mode
     with memory_logger(

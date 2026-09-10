@@ -64,9 +64,7 @@ if __name__ == "__main__":
         rolling_horizon=rolling_horizon,
     )
 
-    logging_frequency = snakemake.config.get("solving", {}).get(
-        "mem_logging_frequency", 30
-    )
+    logging_frequency = snakemake.params.solving.get("mem_logging_frequency", 30)
 
     with memory_logger(
         filename=getattr(snakemake.log, "memory", None), interval=logging_frequency
