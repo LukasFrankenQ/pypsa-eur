@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: MIT
 
-import os
 import requests
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
@@ -1515,6 +1514,7 @@ elif NATURA_DATASET["source"] == "build":
         """Downloads the Natura 2000 shapes from the EEA and rasterises them onto the cutout grid."""
         cache: "omit-storage-content"
         input:
+            code_dependencies=code_dependencies("scripts/build_natura.py"),
             online=storage(NATURA_DATASET["url"]),
             cutout=lambda w: input_cutout(w),
         output:
