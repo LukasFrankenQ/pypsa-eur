@@ -1284,8 +1284,8 @@ def extra_functionality(
     if config["sector"]["imports"]["enable"]:
         add_import_limit_constraint(n, snapshots, config)
 
-    if n.params.custom_extra_functionality:
-        source_path = n.params.custom_extra_functionality
+    if snakemake is not None and snakemake.input.custom_extra_functionality:
+        source_path = snakemake.input.custom_extra_functionality
         assert os.path.exists(source_path), f"{source_path} does not exist"
         sys.path.append(os.path.dirname(source_path))
         module_name = os.path.splitext(os.path.basename(source_path))[0]

@@ -6561,8 +6561,8 @@
                   "type": "null"
                 }
               ],
-              "default": "../data/custom_extra_functionality.py",
-              "description": "Path to a Python file with custom extra functionality code to be injected into the solving rules of the workflow relative to `rules` directory."
+              "default": "data/custom_extra_functionality.py",
+              "description": "Path to a Python file with custom extra functionality code to be injected into the solving rules of the workflow, relative to the workflow's root directory."
             },
             "io_api": {
               "anyOf": [
@@ -10157,8 +10157,8 @@
               "type": "null"
             }
           ],
-          "default": "../data/custom_extra_functionality.py",
-          "description": "Path to a Python file with custom extra functionality code to be injected into the solving rules of the workflow relative to `rules` directory."
+          "default": "data/custom_extra_functionality.py",
+          "description": "Path to a Python file with custom extra functionality code to be injected into the solving rules of the workflow, relative to the workflow's root directory."
         },
         "io_api": {
           "anyOf": [
@@ -15306,8 +15306,8 @@
                   "type": "null"
                 }
               ],
-              "default": "../data/custom_extra_functionality.py",
-              "description": "Path to a Python file with custom extra functionality code to be injected into the solving rules of the workflow relative to `rules` directory."
+              "default": "data/custom_extra_functionality.py",
+              "description": "Path to a Python file with custom extra functionality code to be injected into the solving rules of the workflow, relative to the workflow's root directory."
             },
             "io_api": {
               "anyOf": [

@@ -5,7 +5,9 @@
 
 rule build_electricity_demand:
     """Builds national hourly electricity demand time series from ENTSO-E, OPSD and NESO data."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/build_electricity_demand.py"),
         opsd=rules.retrieve_opsd_electricity_demand.output["csv"],
         neso=rules.retrieve_neso_electricity_demand.output["csv"],
         entsoe=rules.retrieve_entsoe_electricity_demand.output["csv"],
@@ -19,8 +21,6 @@ rule build_electricity_demand:
         resources("electricity_demand.csv"),
     log:
         logs("build_electricity_demand.log"),
-    benchmark:
-        benchmarks("build_electricity_demand")
     resources:
         mem_mb=5000,
     params:
@@ -34,7 +34,9 @@ rule build_electricity_demand:
 
 rule build_powerplants:
     """Assigns conventional power plant capacities from powerplantmatching to clustered buses."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/build_powerplants.py"),
         network=resources("networks/clustered.nc"),
         regions_onshore=resources("onshore_regions.geojson"),
         regions_offshore=resources("offshore_regions.geojson"),
@@ -47,8 +49,6 @@ rule build_powerplants:
         resources("powerplants.csv"),
     log:
         logs("build_powerplants.log"),
-    benchmark:
-        benchmarks("build_powerplants")
     threads: 1
     resources:
         mem_mb=7000,
@@ -81,8 +81,10 @@ def input_base_network(w):
 
 rule base_network:
     """Builds the base PyPSA network and bus Voronoi regions from OSM, TYNDP or ENTSO-E grid data."""
+    cache: True
     input:
         unpack(input_base_network),
+        code_dependencies=code_dependencies("scripts/base_network.py"),
         nuts3_shapes=resources("nuts3_shapes.geojson"),
         country_shapes=resources("country_shapes.geojson"),
         offshore_shapes=resources("offshore_shapes.geojson"),
@@ -94,8 +96,6 @@ rule base_network:
         admin_shapes=resources("admin_shapes.geojson"),
     log:
         logs("base_network.log"),
-    benchmark:
-        benchmarks("base_network")
     threads: 4
     resources:
         mem_mb=2000,
@@ -122,7 +122,11 @@ rule base_network:
 
 rule build_osm_boundaries:
     """Builds first-level administrative boundaries of a country from OSM data clipped to land."""
+    cache: True
     input:
+        code_dependencies=code_dependencies(
+            "scripts/build_osm_boundaries.py", "scripts/build_offshore_shapes.py"
+        ),
         json=f"{OSM_BOUNDARIES_DATASET['folder']}/{{country}}_adm1.json",
         eez=ancient(rules.retrieve_eez.output["gpkg"]),
     output:
@@ -138,7 +142,9 @@ rule build_osm_boundaries:
 
 rule build_bidding_zones:
     """Merges bidding zone shapes from electricitymaps and entsoe-py into one harmonised layer."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/build_bidding_zones.py"),
         bidding_zones_entsoepy=f"{BIDDING_ZONES_ENTSOEPY_DATASET['folder']}/bidding_zones_entsoepy.geojson",
         bidding_zones_electricitymaps=f"{BIDDING_ZONES_ELECTRICITYMAPS_DATASET['folder']}/bidding_zones_electricitymaps.geojson",
     output:
@@ -162,14 +168,14 @@ rule build_bidding_zones:
 
 rule build_offshore_shapes:
     """Builds offshore shapes from exclusive economic zones of the selected countries."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/build_offshore_shapes.py"),
         eez=ancient(rules.retrieve_eez.output["gpkg"]),
     output:
         offshore_shapes=resources("offshore_shapes.geojson"),
     log:
         logs("build_offshore_shapes.log"),
-    benchmark:
-        benchmarks("build_offshore_shapes")
     threads: 1
     resources:
         mem_mb=1500,
@@ -181,7 +187,9 @@ rule build_offshore_shapes:
 
 rule build_nuts3_shapes:
     """Builds NUTS3 and ADM1 region shapes enriched with GDP and population data."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/build_nuts3_shapes.py"),
         nuts3_2021=rules.retrieve_eu_nuts2021.output["shapes_level_3"],
         ba_adm1=f"data/osm_boundaries/build/{OSM_BOUNDARIES_DATASET['version']}/BA_adm1.geojson",
         md_adm1=f"data/osm_boundaries/build/{OSM_BOUNDARIES_DATASET['version']}/MD_adm1.geojson",
@@ -201,8 +209,6 @@ rule build_nuts3_shapes:
         nuts3_shapes=resources("nuts3_shapes.geojson"),
     log:
         logs("build_nuts3_shapes.log"),
-    benchmark:
-        benchmarks("build_nuts3_shapes")
     threads: 1
     resources:
         mem_mb=1500,
@@ -214,7 +220,9 @@ rule build_nuts3_shapes:
 
 rule build_shapes:
     """Builds country shapes and the Europe shape from NUTS3 regions and offshore shapes."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/build_shapes.py"),
         nuts3_shapes=resources("nuts3_shapes.geojson"),
         offshore_shapes=resources("offshore_shapes.geojson"),
     output:
@@ -222,8 +230,6 @@ rule build_shapes:
         europe_shape=resources("europe_shape.geojson"),
     log:
         logs("build_shapes.log"),
-    benchmark:
-        benchmarks("build_shapes")
     threads: 1
     resources:
         mem_mb=1500,
@@ -235,12 +241,13 @@ if CUTOUT_DATASET["source"] in ["build"]:
 
     rule build_cutout:
         """Builds weather data cutouts from ERA5 or SARAH with atlite."""
+        cache: True
+        input:
+            code_dependencies=code_dependencies("scripts/build_cutout.py"),
         output:
             cutout=CUTOUT_DATASET["folder"] + "/{cutout}.nc",
         log:
             "logs/build_cutout/{cutout}.log",
-        benchmark:
-            "benchmarks/build_cutout/{cutout}"
         threads: atlite_threads
         resources:
             mem_mb=atlite_mem_mb(1000),
@@ -252,15 +259,15 @@ if CUTOUT_DATASET["source"] in ["build"]:
 
 rule build_ship_raster:
     """Crops the global ship traffic density raster to the cutout extent."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/build_ship_raster.py"),
         ship_density=rules.retrieve_ship_raster.output["zip_file"],
         cutout=lambda w: input_cutout(w),
     output:
         resources("shipdensity_raster.tif"),
     log:
         logs("build_ship_raster.log"),
-    benchmark:
-        benchmarks("build_ship_raster")
     resources:
         mem_mb=5000,
     script:
@@ -437,14 +444,14 @@ rule build_renewable_profiles:
 
 rule build_co2_prices:
     """Builds a smoothed CO2 price time series from historical daily emission allowance prices."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/build_co2_prices.py"),
         csv=rules.retrieve_instrat_co2_prices.output["csv"],
     output:
         csv=resources("co2_price.csv"),
     log:
         logs("build_co2_prices.log"),
-    benchmark:
-        benchmarks("build_co2_prices")
     threads: 1
     resources:
         mem_mb=5000,
@@ -456,14 +463,14 @@ rule build_co2_prices:
 
 rule build_fossil_fuel_prices:
     """Builds monthly oil, gas and coal price time series from World Bank commodity price data."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/build_monthly_prices.py"),
         fuel_price_raw=rules.retrieve_worldbank_commodity_prices.output["xlsx"],
     output:
         fuel_price=resources("monthly_fuel_price.csv"),
     log:
         logs("build_monthly_prices.log"),
-    benchmark:
-        benchmarks("build_monthly_prices")
     threads: 1
     resources:
         mem_mb=5000,
@@ -481,15 +488,15 @@ if COUNTRY_RUNOFF_DATASET["source"] == "build":
     # E.g. cutouts=[<cutout for 1940-2024>, <cutout for 2025-2025>]
     rule build_country_runoff:
         """Computes daily runoff per country from ERA5 cutouts to fill missing EIA hydro statistics."""
+        cache: True
         input:
+            code_dependencies=code_dependencies("scripts/build_country_runoff.py"),
             cutouts=lambda w: input_cutout(w, ["europe-1940-2024-era5"]),
             country_shapes=resources("country_shapes.geojson"),
         output:
             era5_runoff=COUNTRY_RUNOFF_DATASET["folder"] / "era5-runoff-per-country.csv",
         log:
             logs("build_country_runoff.log"),
-        benchmark:
-            benchmarks("build_country_runoff")
         script:
             scripts("build_country_runoff.py")
 
@@ -572,7 +579,9 @@ def _transmission_project_files(w):
 
 rule build_transmission_projects:
     """Collects, deduplicates and maps transmission projects onto base network buses."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/build_transmission_projects.py"),
         base_network=resources("networks/base.nc"),
         offshore_shapes=resources("offshore_shapes.geojson"),
         europe_shape=resources("europe_shape.geojson"),
@@ -585,8 +594,6 @@ rule build_transmission_projects:
         new_buses=resources("transmission_projects/new_buses.csv"),
     log:
         logs("build_transmission_projects.log"),
-    benchmark:
-        benchmarks("build_transmission_projects")
     threads: 1
     resources:
         mem_mb=4000,
@@ -600,7 +607,9 @@ rule build_transmission_projects:
 
 rule add_transmission_projects_and_dlr:
     """Adds transmission projects and dynamic line ratings to the base network."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/add_transmission_projects_and_dlr.py"),
         network=resources("networks/base.nc"),
         dlr=lambda w: (
             resources("dlr.nc")
@@ -622,8 +631,6 @@ rule add_transmission_projects_and_dlr:
         network=resources("networks/base_extended.nc"),
     log:
         logs("add_transmission_projects_and_dlr.log"),
-    benchmark:
-        benchmarks("add_transmission_projects_and_dlr")
     threads: 1
     resources:
         mem_mb=4000,
@@ -645,7 +652,9 @@ def input_class_regions(w):
 
 rule build_electricity_demand_base:
     """Distributes national electricity demand to simplified network regions by spatial keys."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/build_electricity_demand_base.py"),
         base_network=resources("networks/simplified.nc"),
         regions=resources("onshore_regions_simplified.geojson"),
         raster=rules.retrieve_jrc_energy_atlas.output["tif"],
@@ -657,8 +666,6 @@ rule build_electricity_demand_base:
         resources("electricity_demand_simplified.nc"),
     log:
         logs("build_electricity_demand_simplified.log"),
-    benchmark:
-        benchmarks("build_electricity_demand_simplified")
     resources:
         mem_mb=5000,
     params:
@@ -692,7 +699,11 @@ rule build_hac_features:
 
 rule process_cost_data:
     """Prepares technology cost data with unit alignment, annualised costs and custom modifications."""
+    cache: True
     input:
+        code_dependencies=code_dependencies(
+            "scripts/process_cost_data.py", "scripts/add_electricity.py"
+        ),
         network=resources("networks/simplified.nc"),
         costs=lambda w: rules.retrieve_costs.output["costs"].format(
             horizon=cost_year(w)
@@ -702,8 +713,6 @@ rule process_cost_data:
         resources("costs_{horizon}_processed.csv"),
     log:
         logs("build_cost_data_{horizon}.log"),
-    benchmark:
-        benchmarks("build_cost_data_{horizon}")
     threads: 1
     resources:
         mem_mb=4000,
@@ -825,7 +834,9 @@ rule cluster_network:
 
 rule chain_busmaps:
     """Chains the simplify and cluster busmaps into one mapping from base to clustered buses."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/chain_busmaps.py"),
         busmap_simplify_network=resources("busmap_simplify_network.csv"),
         busmap_cluster_network=resources("busmap_cluster_network.csv"),
     output:
@@ -839,15 +850,15 @@ rule chain_busmaps:
 
 rule cluster_electricity_demand:
     """Aggregates simplified per-bus electricity demand to clustered network buses."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/cluster_electricity_demand.py"),
         load=resources("electricity_demand_simplified.nc"),
         busmap=resources("busmap_cluster_network.csv"),
     output:
         resources("electricity_demand.nc"),
     log:
         logs("cluster_electricity_demand.log"),
-    benchmark:
-        benchmarks("cluster_electricity_demand")
     resources:
         mem_mb=3000,
     script:
@@ -879,7 +890,9 @@ def input_conventional(w):
 
 rule clean_osm_data:
     """Cleans raw OSM substation, line and cable data into consistent GeoJSON layers."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/clean_osm_data.py"),
         cables_way=expand(
             f"{OSM_DATASET['folder']}/{{country}}/cables_way.json",
             country=config_provider("countries"),
@@ -910,8 +923,6 @@ rule clean_osm_data:
         links=resources(f"osm/clean/links.geojson"),
     log:
         logs("clean_osm_data.log"),
-    benchmark:
-        benchmarks("clean_osm_data")
     threads: 1
     resources:
         mem_mb=4000,
@@ -923,7 +934,9 @@ rule clean_osm_data:
 
 rule build_osm_network:
     """Builds buses, lines, links, converters and transformers from cleaned OSM data."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/build_osm_network.py"),
         substations=resources(f"osm/clean/substations.geojson"),
         substations_polygon=resources(f"osm/clean/substations_polygon.geojson"),
         dc_switching=resources(f"osm/clean/dc_switching.geojson"),
@@ -947,8 +960,6 @@ rule build_osm_network:
         buses_polygon=resources(f"osm/build/geojson/buses_polygon.geojson"),
     log:
         logs("build_osm_network.log"),
-    benchmark:
-        benchmarks("build_osm_network")
     threads: 1
     resources:
         mem_mb=4000,
@@ -963,7 +974,9 @@ rule build_osm_network:
 
 rule build_tyndp_network:
     """Builds buses and links of the TYNDP reference grid from node data and bidding zone shapes."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/build_tyndp_network.py"),
         reference_grid=rules.retrieve_tyndp.output.reference_grid,
         buses=rules.retrieve_tyndp.output.nodes,
         bidding_shapes=resources("bidding_zones.geojson"),
@@ -982,8 +995,6 @@ rule build_tyndp_network:
         substations_h2_geojson=resources("tyndp/build/geojson/buses_h2.geojson"),
     log:
         logs("build_tyndp_network.log"),
-    benchmark:
-        benchmarks("build_tyndp_network")
     threads: 1
     resources:
         mem_mb=4000,

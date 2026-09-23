@@ -148,8 +148,8 @@ class _SolvingOptionsConfig(BaseModel):
         123, description="Random seed for increased deterministic behaviour."
     )
     custom_extra_functionality: str | None = Field(
-        "../data/custom_extra_functionality.py",
-        description="Path to a Python file with custom extra functionality code to be injected into the solving rules of the workflow relative to `rules` directory.",
+        "data/custom_extra_functionality.py",
+        description="Path to a Python file with custom extra functionality code to be injected into the solving rules of the workflow, relative to the workflow's root directory.",
     )
     io_api: str | None = Field(
         None,

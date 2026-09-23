@@ -27,11 +27,20 @@ from snakemake.settings.types import (
     WorkflowSettings,
 )
 
+from scripts._helpers import load_data_versions
+
 ROOT = Path(__file__).resolve().parent.parent
 ELEC_CONFIG = Path("config/test/config.electricity.yaml")
 
-# A small, network-free target used to sanity-check the harness itself.
+# A small target used to sanity-check the harness itself. Every rule feeding it
+# (build_shapes, base_network, ...) is cache-eligible now that build_electricity.smk
+# is fully cached, so the harness must report a non-empty result for it.
 SMALL_TARGETS = ["resources/test-elec/networks/base.nc"]
+
+# Rules Snakemake genuinely refuses to cache (checkpoint, pipe()/service()/touch()
+# output, multiple unnamed outputs). Every rule in build_electricity.smk and
+# build_sector.smk not listed here must carry a `cache:` directive.
+UNCACHED_BUILD_RULES: frozenset[str] = frozenset()
 
 CacheKey = tuple[str, tuple[tuple[str, str], ...]]
 
@@ -183,8 +192,17 @@ def test_caching_switch_no_cache_lines_without_flag() -> None:
     assert not any("cach" in line.lower() for line in relevant_lines)
 
 
-def test_cache_keys_harness_empty_before_any_rule_cached(cache_dir: Path) -> None:
-    assert cache_keys(ELEC_CONFIG, SMALL_TARGETS, cache_dir) == {}
+def test_cache_keys_harness_finds_base_network_chain(cache_dir: Path) -> None:
+    """
+    Sanity-check the harness itself.
+
+    base_network and its whole upstream chain in build_electricity.smk are all
+    cache-eligible, so this small target must yield a non-empty result with an
+    entry for the rule that produces it.
+    """
+    keys = cache_keys(ELEC_CONFIG, SMALL_TARGETS, cache_dir)
+    assert keys
+    assert ("base_network", ()) in keys
 
 
 def _has_storage_input(rule) -> bool:
@@ -192,7 +210,7 @@ def _has_storage_input(rule) -> bool:
     return any(getattr(item, "is_storage", False) for item in rule.input)
 
 
-def test_every_storage_rule_marks_hash_omit_storage_content() -> None:
+def test_every_storage_rule_marks_omit_storage_content() -> None:
     """
     Every rule with a storage() input must carry the omit-storage-content flag.
 
@@ -267,9 +285,9 @@ def _input_section(block: str) -> str:
     return "\n".join(lines[start + 1 : end])
 
 
-def test_every_storage_rule_marks_hash_omit_storage_content_branch_blind() -> None:
+def test_every_storage_rule_marks_omit_storage_content_branch_blind() -> None:
     """
-    Text-level companion to test_every_storage_rule_marks_hash_omit_storage_content.
+    Text-level companion to test_every_storage_rule_marks_omit_storage_content.
 
     That test only sees rules reachable from the elec test config's DAG, so a
     rule gated behind a config branch that config does not take (an alternate
@@ -277,6 +295,10 @@ def test_every_storage_rule_marks_hash_omit_storage_content_branch_blind() -> No
     scans the raw rules/*.smk text instead, with no DAG build and no
     snakemake import, so it covers every branch regardless of which one the
     active config selects.
+
+    "omit-storage-content" (without the "hash-" prefix) is required: the
+    "hash-" variant only sets the omit_storage_content flag without the
+    output flag, so it never actually caches the rule's output.
     """
     offenders = []
     storage_input_rule_count = 0
@@ -285,7 +307,10 @@ def test_every_storage_rule_marks_hash_omit_storage_content_branch_blind() -> No
             if "storage(" not in _input_section(block):
                 continue
             storage_input_rule_count += 1
-            if "hash-omit-storage-content" not in block:
+            if (
+                'cache: "omit-storage-content"' not in block
+                or "hash-omit-storage-content" in block
+            ):
                 offenders.append(f"{path.name}:{name}")
 
     # Guards against the regexes or glob silently stopping matching, which
@@ -670,3 +695,215 @@ def test_sector_run_name_leaves_keys_unchanged(cache_dir: Path) -> None:
         overrides={"run": {"name": "other-name"}},
     )
     assert baseline == renamed
+
+
+BUILD_RULE_FILES = ("build_electricity.smk", "build_sector.smk")
+
+
+def test_build_rules_are_cached_and_benchmark_free() -> None:
+    """
+    Every rule in build_electricity.smk and build_sector.smk is cache-eligible.
+
+    Snakemake rejects a benchmark: directive on a cached rule (a cache hit has
+    no run to benchmark), so every rule not named in UNCACHED_BUILD_RULES must
+    carry a cache: directive and none may carry benchmark:.
+    """
+    missing_cache = []
+    still_benchmarked = []
+    rule_count = 0
+    for filename in BUILD_RULE_FILES:
+        text = (ROOT / "rules" / filename).read_text()
+        for name, block in _rule_blocks(text):
+            if name in UNCACHED_BUILD_RULES:
+                continue
+            rule_count += 1
+            if not re.search(r"^\s*cache:", block, re.MULTILINE):
+                missing_cache.append(f"{filename}:{name}")
+            if re.search(r"^\s*benchmark:", block, re.MULTILINE):
+                still_benchmarked.append(f"{filename}:{name}")
+
+    assert rule_count > 0
+    assert missing_cache == []
+    assert still_benchmarked == []
+
+
+LOCAL_IMPORT_RE = re.compile(r"^(?:import|from)\s+(scripts(?:\.\w+)+)")
+
+
+def _local_script_import_targets(rule) -> set[str]:
+    """
+    Return the code_dependencies-relative paths a rule's script imports locally.
+
+    Resolves each `scripts.<module>` import (other than scripts._helpers, which
+    code_dependencies() always includes) to the scripts/<module>.py path a
+    cached rule's code_dependencies input must list for the provenance hash to
+    actually cover the code that runs.
+    """
+    script_path = ROOT / str(rule.script)
+    text = script_path.read_text()
+    targets = set()
+    for line in text.splitlines():
+        m = LOCAL_IMPORT_RE.match(line.strip())
+        if not m or m.group(1) == "scripts._helpers":
+            continue
+        targets.add("scripts/" + "/".join(m.group(1).split(".")[1:]) + ".py")
+    return targets
+
+
+def test_build_rules_are_cache_eligible_and_cover_local_imports() -> None:
+    """
+    Every build_electricity.smk/build_sector.smk rule reachable under the elec
+    test config is cache-eligible, and every local module it imports (besides
+    scripts._helpers) is listed in its code_dependencies input.
+    """
+    with SnakemakeApi(OutputSettings()) as snakemake_api:
+        workflow_api = snakemake_api.workflow(
+            resource_settings=ResourceSettings(cores=1),
+            config_settings=ConfigSettings(configfiles=[ROOT / ELEC_CONFIG], config={}),
+            workflow_settings=WorkflowSettings(),
+            workdir=ROOT,
+        )
+        workflow = workflow_api._workflow
+        rules = [
+            rule
+            for rule in workflow.rules
+            if Path(rule.snakefile).name in BUILD_RULE_FILES
+            and rule.name not in UNCACHED_BUILD_RULES
+        ]
+
+        not_cacheable = [r.name for r in rules if not (r.cache and r.cache.output)]
+        uncovered_imports = {
+            rule.name: missing
+            for rule in rules
+            if (
+                missing := _local_script_import_targets(rule)
+                - {str(d) for d in getattr(rule.input, "code_dependencies", [])}
+            )
+        }
+
+    assert len(rules) > 0
+    assert not_cacheable == []
+    assert uncovered_imports == {}
+
+
+def test_retrieve_rule_key_moves_with_dataset_version(cache_dir: Path) -> None:
+    """
+    A retrieve rule cached with omit-storage-content still keys off the
+    dataset version.
+
+    run: bodies aren't source-hashed (job.is_shell/is_script/is_notebook are
+    all False), so without an explicit version param two versions of the same
+    dataset would collide on one cache entry.
+    """
+    data_versions = load_data_versions(ROOT / "data" / "versions.csv")
+    nitrogen = data_versions[
+        (data_versions["dataset"] == "nitrogen_statistics")
+        & (data_versions["source"] == "archive")
+        & data_versions["supported"]
+    ]
+    supported_versions = nitrogen["version"].tolist()
+    assert len(supported_versions) >= 2
+
+    default_version = nitrogen.loc[nitrogen["latest"], "version"].item()
+    other_version = next(v for v in supported_versions if v != default_version)
+
+    def target(version: str) -> str:
+        return f"data/nitrogen_statistics/archive/{version}/nitro-ert.xlsx"
+
+    baseline = cache_keys(ELEC_CONFIG, [target(default_version)], cache_dir)
+    overridden = cache_keys(
+        ELEC_CONFIG,
+        [target(other_version)],
+        cache_dir,
+        overrides={"data": {"nitrogen_statistics": {"version": other_version}}},
+    )
+    key = ("retrieve_nitrogen_statistics", ())
+    assert baseline[key] != overridden[key]
+
+
+def test_solve_network_custom_extra_functionality_is_input_not_param() -> None:
+    """
+    custom_extra_functionality must be an input so its content is hashed.
+
+    A params entry is only value-hashed (the path string), which would miss
+    edits to the referenced script; moving it to input content-hashes it.
+    """
+    with SnakemakeApi(OutputSettings()) as snakemake_api:
+        workflow_api = snakemake_api.workflow(
+            resource_settings=ResourceSettings(cores=1),
+            config_settings=ConfigSettings(configfiles=[ROOT / ELEC_CONFIG], config={}),
+            workflow_settings=WorkflowSettings(),
+            workdir=ROOT,
+        )
+        workflow = workflow_api._workflow
+        rule = workflow.get_rule("solve_network")
+
+        assert "custom_extra_functionality" in rule.input.keys()
+        assert "custom_extra_functionality" not in rule.params.keys()
+
+
+PARAMS_HEADER_RE = re.compile(r"^\s*params:\s*$")
+
+
+def _params_section(block: str) -> str:
+    """Return a rule block's params: section text, or "" if it has none."""
+    lines = block.splitlines()
+    start = next(
+        (i for i, line in enumerate(lines) if PARAMS_HEADER_RE.match(line)), None
+    )
+    if start is None:
+        return ""
+    end = next(
+        (
+            i
+            for i, line in enumerate(lines[start + 1 :], start + 1)
+            if DIRECTIVE_RE.match(line)
+        ),
+        len(lines),
+    )
+    return "\n".join(lines[start + 1 : end])
+
+
+def test_no_api_token_in_rule_params() -> None:
+    """
+    No params: section may embed an API token.
+
+    A token value would differ per user/machine, so hashing it as a param
+    would defeat sharing a cache hit across users for otherwise-identical
+    rules; tokens must be read from the environment inside the script instead.
+    """
+    offenders = [
+        f"{path.name}:{name}"
+        for path in sorted((ROOT / "rules").glob("*.smk"))
+        for name, block in _rule_blocks(path.read_text())
+        if "API_TOKEN" in _params_section(block)
+    ]
+
+    assert offenders == []
+
+
+def test_cache_dry_run_parses_cleanly(cache_dir: Path) -> None:
+    """
+    `snakemake -n --cache` against the validator config exits 0.
+
+    A parse-level proof that every cache:/input: directive touched by this
+    module is syntactically and semantically accepted, independent of which
+    specific targets a unit test happens to build a DAG for.
+    """
+    env = os.environ.copy()
+    env["SNAKEMAKE_OUTPUT_CACHE"] = str(cache_dir)
+    result = subprocess.run(
+        [
+            "snakemake",
+            "-n",
+            "--cache",
+            "--configfile",
+            "config/test/config.validator.yaml",
+        ],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr

@@ -243,12 +243,11 @@ def solver_threads(w):
 
 
 def input_custom_extra_functionality(w):
+    """Return the custom extra-functionality script path, relative to the workdir, or []."""
     path = config_provider(
         "solving", "options", "custom_extra_functionality", default=False
     )(w)
-    if path:
-        return os.path.join(os.path.dirname(workflow.snakefile), path)
-    return []
+    return path if path else []
 
 
 def input_custom_costs(w) -> list[str]:

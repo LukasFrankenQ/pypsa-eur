@@ -13,6 +13,7 @@ Usage Instructions:
 
 import json
 import logging
+import os
 import time
 from json.decoder import JSONDecodeError
 from pathlib import Path
@@ -72,7 +73,7 @@ if __name__ == "__main__":
     configure_logging(snakemake)
     set_scenario_config(snakemake)
 
-    apikey = snakemake.params["apikey"]
+    apikey = os.environ.get("CORINE_API_TOKEN", "")
     if not apikey:
         raise ValueError(
             "Environment variable CORINE_API_TOKEN is not set.\n"
