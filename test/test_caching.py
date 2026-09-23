@@ -33,8 +33,8 @@ ROOT = Path(__file__).resolve().parent.parent
 ELEC_CONFIG = Path("config/test/config.electricity.yaml")
 
 # A small target used to sanity-check the harness itself. Every rule feeding it
-# (build_shapes, base_network, ...) is cache-eligible now that build_electricity.smk
-# is fully cached, so the harness must report a non-empty result for it.
+# is cache-eligible now that build_electricity.smk is fully cached, so the
+# harness must report a non-empty result for it.
 SMALL_TARGETS = ["resources/test-elec/networks/base.nc"]
 
 # Rules Snakemake genuinely refuses to cache (checkpoint, pipe()/service()/touch()
@@ -296,8 +296,8 @@ def test_every_storage_rule_marks_omit_storage_content_branch_blind() -> None:
     snakemake import, so it covers every branch regardless of which one the
     active config selects.
 
-    "omit-storage-content" (without the "hash-" prefix) is required: the
-    "hash-" variant only sets the omit_storage_content flag without the
+    `omit-storage-content` (without the `hash-` prefix) is required. The
+    `hash-` variant only sets the omit_storage_content flag without the
     output flag, so it never actually caches the rule's output.
     """
     offenders = []
@@ -870,7 +870,7 @@ def test_no_api_token_in_rule_params() -> None:
 
     A token value would differ per user/machine, so hashing it as a param
     would defeat sharing a cache hit across users for otherwise-identical
-    rules; tokens must be read from the environment inside the script instead.
+    rules. Tokens must be read from the environment inside the script instead.
     """
     offenders = [
         f"{path.name}:{name}"
