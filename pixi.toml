@@ -102,7 +102,9 @@ scipy = ">=1.16.3"
 seaborn = ">=0.13.2"
 shapely = ">=2.0"
 snakemake-executor-plugin-cluster-generic = ">=1.0.9"
-snakemake-minimal = ">=9"
+# sdist-only on PyPI, so the git snakemake pin below must not build them.
+connection_pool = "*"
+immutables = "*"
 snakemake-storage-plugin-http = ">=0.3"
 tenacity = ">=9.1.2"
 tqdm = ">=4.67.1"
@@ -116,6 +118,11 @@ natsort = ">=8.4.0"
 snakemake-logger-plugin-pypsa = ">=0.1.0"
 pydeflate = ">=2.3.4"
 snakemake-logger-plugin-snkmt = "==0.1.6" # For better pypsa-app integration
+
+# Git pin for the cache-fetch parent-dir fix. Back to conda snakemake-minimal
+# once a release carries it (snakemake/snakemake PR pending).
+[pypi-dependencies]
+snakemake = { git = "https://github.com/lkstrp/snakemake.git", rev = "eccb55cf75147763762db7f9ce03b1e59e9cabc9" }
 
 [target.unix.dependencies]
 snakemake-executor-plugin-slurm = ">=1.9.2"
