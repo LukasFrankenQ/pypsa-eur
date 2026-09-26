@@ -1732,18 +1732,11 @@ if (AQUIFER_DATA_DATASET := dataset_version("aquifer_data"))["source"] in [
             zip_file=storage(AQUIFER_DATA_DATASET["url"]),
         output:
             zip_file=f"{AQUIFER_DATA_DATASET['folder']}/ihme1500_aquif_ec4060_v12_poly.zip",
-            aquifer_shapes=expand(
-                f"{AQUIFER_DATA_DATASET['folder']}/IHME1500_v12/shp/ihme1500_aquif_ec4060_v12_poly.{{ext}}",
-                ext=[
-                    "shp",
-                    "shx",
-                    "dbf",
-                    "cpg",
-                    "prj",
-                    "sbn",
-                    "sbx",
-                ],
-            ),
+            # One named output per file, since a list-valued output cannot be cached.
+            **{
+                f"aquifer_shapes_{ext}": f"{AQUIFER_DATA_DATASET['folder']}/IHME1500_v12/shp/ihme1500_aquif_ec4060_v12_poly.{ext}"
+                for ext in ["shp", "shx", "dbf", "cpg", "prj", "sbn", "sbx"]
+            },
         params:
             version=AQUIFER_DATA_DATASET["version"],
         run:

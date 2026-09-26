@@ -347,7 +347,7 @@ rule build_ates_potentials:
     cache: True
     input:
         code_dependencies=code_dependencies("scripts/build_ates_potentials.py"),
-        aquifer_shapes_shp=rules.retrieve_aquifer_data.output["aquifer_shapes"][0],
+        aquifer_shapes_shp=rules.retrieve_aquifer_data.output["aquifer_shapes_shp"],
         dh_areas=resources("dh_areas.geojson"),
         onshore_regions=resources("onshore_regions.geojson"),
         central_heating_forward_temperature_profiles=resources(
