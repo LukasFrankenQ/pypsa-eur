@@ -119,10 +119,10 @@ snakemake-logger-plugin-pypsa = ">=0.1.0"
 pydeflate = ">=2.3.4"
 snakemake-logger-plugin-snkmt = "==0.1.6" # For better pypsa-app integration
 
-# Git pin for the cache-fetch parent-dir fix. Back to conda snakemake-minimal
-# once a release carries it (snakemake/snakemake PR pending).
+# Git pin for the cache-fetch fixes (parent dir, nested outputs). Back to conda
+# snakemake-minimal once a release carries them (snakemake/snakemake PRs pending).
 [pypi-dependencies]
-snakemake = { git = "https://github.com/lkstrp/snakemake.git", rev = "eccb55cf75147763762db7f9ce03b1e59e9cabc9" }
+snakemake = { git = "https://github.com/lkstrp/snakemake.git", rev = "d3a8132ed630aad1b67f5fccb183a28a6f1fe3bb" }
 
 [target.unix.dependencies]
 snakemake-executor-plugin-slurm = ">=1.9.2"
