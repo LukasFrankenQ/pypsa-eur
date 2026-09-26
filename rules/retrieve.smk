@@ -1333,6 +1333,8 @@ if (INSTRAT_CO2_PRICES_DATASET := dataset_version("instrat_co2_prices"))["source
         params:
             # The API is unversioned, so the cache key rolls over once a day.
             retrieved=datetime.now().date().isoformat(),
+            # Bump when the run body changes, run-block code is not hashed.
+            code_version="1",
         retries: 2
         resources:
             mem_mb=5000,
