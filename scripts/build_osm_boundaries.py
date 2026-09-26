@@ -174,7 +174,7 @@ if __name__ == "__main__":
     configure_logging(snakemake)
     set_scenario_config(snakemake)
 
-    country = snakemake.wildcards.country
+    country = snakemake.params.country
     adm1_path = snakemake.input.json
     offshore_shapes = eez(snakemake.input.eez)
 

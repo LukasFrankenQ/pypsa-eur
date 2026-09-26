@@ -1481,7 +1481,7 @@ if __name__ == "__main__":
 
     # Load network
     n = pypsa.Network(snakemake.input.network)
-    planning_horizons = snakemake.wildcards.horizon
+    planning_horizons = snakemake.params.horizon
 
     # Prepare network (settings before solving)
     prepare_network(
@@ -1581,7 +1581,7 @@ if __name__ == "__main__":
             logger.warning(
                 f"Solving status '{status}' with termination condition '{condition}'"
             )
-        check_objective_value(n, snakemake.params.solving, snakemake.wildcards.horizon)
+        check_objective_value(n, snakemake.params.solving, snakemake.params.horizon)
 
     if condition in [
         TerminationCondition.infeasible,

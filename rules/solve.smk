@@ -13,6 +13,13 @@ def solar_capacity_per_sqkm_provider(w):
     }
 
 
+def input_agg_p_nom_limits(w):
+    """Declare the CCL limits file, which the solve scripts read by path."""
+    if config_provider("solving", "constraints", "CCL")(w):
+        return config_provider("solving", "agg_p_nom_limits", "file")(w)
+    return []
+
+
 rule solve_network:
     """Optimises investment and dispatch for one planning horizon to minimise total system cost."""
     cache: True
@@ -22,6 +29,7 @@ rule solve_network:
         ),
         network=resources("networks/composed_{horizon}.nc"),
         custom_extra_functionality=input_custom_extra_functionality,
+        agg_p_nom_limits=input_agg_p_nom_limits,
     output:
         network=RESULTS + "networks/solved_{horizon}.nc",
         model=(
@@ -43,7 +51,9 @@ rule solve_network:
         solving=config_provider("solving"),
         foresight=config_provider("foresight"),
         planning_horizons=config_provider("planning_horizons"),
+        electricity=config_provider("electricity"),
         sector=config_provider("sector"),
+        horizon="{horizon}",
         co2_sequestration_potential=config_provider(
             "sector", "co2_sequestration_potential"
         ),
@@ -63,6 +73,7 @@ rule solve_operations_network:
         ),
         network=RESULTS + "networks/solved_{horizon}.nc",
         custom_extra_functionality=input_custom_extra_functionality,
+        agg_p_nom_limits=input_agg_p_nom_limits,
     output:
         network=RESULTS + "networks/operations_{horizon}.nc",
     log:
@@ -79,7 +90,9 @@ rule solve_operations_network:
         solving=config_provider("solving"),
         foresight=config_provider("foresight"),
         planning_horizons=config_provider("planning_horizons"),
+        electricity=config_provider("electricity"),
         sector=config_provider("sector"),
+        horizon="{horizon}",
         co2_sequestration_potential=config_provider(
             "sector", "co2_sequestration_potential"
         ),

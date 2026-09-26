@@ -263,6 +263,7 @@ rule compose_network:
         mem_mb=10000,
     params:
         foresight=config_provider("foresight"),
+        horizon="{horizon}",
         electricity=config_provider("electricity"),
         sector=config_provider("sector"),
         clustering=config_provider("clustering"),

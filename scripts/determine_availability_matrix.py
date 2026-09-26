@@ -52,7 +52,7 @@ if __name__ == "__main__":
     nprocesses = int(snakemake.threads)
     noprogress = snakemake.params.disable_progressbar
     noprogress = noprogress or not snakemake.params.show_progress
-    technology = snakemake.wildcards.technology
+    technology = snakemake.params.technology_name
     params = snakemake.params.technology
 
     cutout = load_cutout(snakemake.input.cutout)

@@ -47,7 +47,7 @@ if __name__ == "__main__":
     np.random.seed(cf_solving.get("seed", 123))
 
     n = pypsa.Network(snakemake.input.network)
-    planning_horizons = snakemake.wildcards["horizon"]
+    planning_horizons = snakemake.params.horizon
 
     rolling_horizon = cf_operations["rolling_horizon"]
 

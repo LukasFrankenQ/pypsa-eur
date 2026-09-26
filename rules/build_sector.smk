@@ -236,6 +236,7 @@ rule build_central_heating_temperature_profiles:
     resources:
         mem_mb=20000,
     params:
+        horizon="{horizon}",
         max_forward_temperature_central_heating_baseyear=config_provider(
             "sector",
             "district_heating",
@@ -932,6 +933,7 @@ rule build_biomass_potentials:
         mem_mb=2000,
     params:
         biomass=config_provider("biomass"),
+        horizon="{horizon}",
         countries=config_provider("countries"),
         foresight=config_provider("foresight"),
     script:
@@ -1215,6 +1217,7 @@ rule build_industry_sector_ratios_intermediate:
         sector_ratios_fraction_future=config_provider(
             "industry", "sector_ratios_fraction_future"
         ),
+        horizon="{horizon}",
     script:
         scripts("build_industry_sector_ratios_intermediate.py")
 
@@ -1286,6 +1289,7 @@ rule build_industrial_production_per_country_tomorrow:
                 "HVC_chemical_recycling_fraction",
             ],
         ),
+        horizon="{horizon}",
     script:
         scripts("build_industrial_production_per_country_tomorrow.py")
 
@@ -1499,9 +1503,10 @@ rule build_population_weighted_energy_totals:
     resources:
         mem_mb=2000,
     params:
+        kind="{kind}",
+        energy_totals_year=config_provider("energy", "energy_totals_year"),
         snapshots=config_provider("snapshots"),
         drop_leap_day=config_provider("enable", "drop_leap_day"),
-        energy_totals_year=config_provider("energy", "energy_totals_year"),
     script:
         scripts("build_population_weighted_energy_totals.py")
 
@@ -1623,6 +1628,7 @@ rule build_district_heat_share:
         district_heating_progress=config_provider(
             "sector", "district_heating", "progress"
         ),
+        horizon="{horizon}",
         energy_totals_year=config_provider("energy", "energy_totals_year"),
     script:
         scripts("build_district_heat_share.py")

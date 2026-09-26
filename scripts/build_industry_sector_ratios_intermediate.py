@@ -79,7 +79,7 @@ if __name__ == "__main__":
     configure_logging(snakemake)
     set_scenario_config(snakemake)
 
-    year = int(snakemake.wildcards.horizon)
+    year = int(snakemake.params.horizon)
 
     fraction_future = get(snakemake.params.sector_ratios_fraction_future, year)
 

@@ -136,6 +136,8 @@ rule build_osm_boundaries:
     threads: 1
     resources:
         mem_mb=1500,
+    params:
+        country="{country}",
     script:
         scripts("build_osm_boundaries.py")
 
@@ -252,7 +254,7 @@ if CUTOUT_DATASET["source"] in ["build"]:
         resources:
             mem_mb=atlite_mem_mb(1000),
         params:
-            cutouts=config_provider("atlite", "cutouts"),
+            cutout=lambda w: config_provider("atlite", "cutouts", w.cutout)(w),
         script:
             scripts("build_cutout.py")
 
@@ -324,6 +326,7 @@ rule determine_availability_matrix_MD_UA:
         mem_mb=atlite_mem_mb(5000),
     params:
         technology=lambda w: config_provider("renewable", w.technology)(w),
+        technology_name="{technology}",
         plot_availability_matrix=config_provider("atlite", "plot_availability_matrix"),
         show_progress=config_provider("atlite", "show_progress"),
     script:
@@ -400,6 +403,7 @@ rule determine_availability_matrix:
         mem_mb=atlite_mem_mb(5000),
     params:
         technology=lambda w: config_provider("renewable", w.technology)(w),
+        technology_name="{technology}",
         plot_availability_matrix=config_provider("atlite", "plot_availability_matrix"),
         disable_progressbar=config_provider("run", "disable_progressbar"),
         show_progress=config_provider("atlite", "show_progress"),
@@ -436,6 +440,7 @@ rule build_renewable_profiles:
         snapshots=config_provider("snapshots"),
         drop_leap_day=config_provider("enable", "drop_leap_day"),
         technology=lambda w: config_provider("renewable", w.technology)(w),
+        technology_name="{technology}",
         disable_progressbar=config_provider("run", "disable_progressbar"),
         show_progress=config_provider("atlite", "show_progress"),
     script:

@@ -54,7 +54,7 @@ if __name__ == "__main__":
     configure_logging(snakemake)
     set_scenario_config(snakemake)
 
-    cutout_params = snakemake.params.cutouts[snakemake.wildcards.cutout]
+    cutout_params = snakemake.params.cutout
     cutout_params["time"] = slice(*cutout_params["time"])
     cutout_params["x"] = slice(*cutout_params["x"])
     cutout_params["y"] = slice(*cutout_params["y"])

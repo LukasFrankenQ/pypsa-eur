@@ -33,7 +33,7 @@ if __name__ == "__main__":
     configure_logging(snakemake)
     set_scenario_config(snakemake)
 
-    if snakemake.wildcards.kind == "heat":
+    if snakemake.params.kind == "heat":
         snapshots = get_snapshots(
             snakemake.params.snapshots, snakemake.params.drop_leap_day
         )

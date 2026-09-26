@@ -417,7 +417,7 @@ if __name__ == "__main__":
 
     overnight = snakemake.params.foresight == "overnight"
     params = snakemake.params.biomass
-    investment_year = int(snakemake.wildcards.horizon)
+    investment_year = int(snakemake.params.horizon)
     year = params["year"] if overnight else investment_year
     scenario = params["scenario"]
     enspreso_fn = snakemake.input.enspreso_biomass
