@@ -733,12 +733,26 @@ if (
 
 
 if (ENERGY_ATLAS_DATASET := dataset_version("jrc_energy_atlas"))["source"] in [
-    "primary",
-    "archive",
+    "archive"
 ]:
 
     rule retrieve_jrc_energy_atlas:
         """Downloads the JRC Energy Atlas raster of annual electricity demand."""
+        cache: "omit-storage-content"
+        input:
+            tif=storage(ENERGY_ATLAS_DATASET["url"]),
+        output:
+            tif=f"{ENERGY_ATLAS_DATASET['folder']}/electricity_tot_demand_2019.tif",
+        message:
+            "Retrieving JRC Energy Atlas electricity demand data raster"
+        params:
+            version=ENERGY_ATLAS_DATASET["version"],
+        run:
+            copy2(input["tif"], output["tif"])
+
+elif ENERGY_ATLAS_DATASET["source"] in ["primary"]:
+
+    rule retrieve_electricity_demand_energy_atlas:
         output:
             tif=f"{ENERGY_ATLAS_DATASET['folder']}/electricity_tot_demand_2019.tif",
         run:
@@ -755,7 +769,22 @@ if (
     DESNZ_ELECTRICITY_CONSUMPTION_DATASET := dataset_version(
         "desnz_electricity_consumption"
     )
-)["source"] in ["primary", "archive"]:
+)["source"] in ["archive"]:
+
+    rule retrieve_desnz_electricity_consumption:
+        cache: "omit-storage-content"
+        input:
+            xlsx=storage(DESNZ_ELECTRICITY_CONSUMPTION_DATASET["url"]),
+        output:
+            xlsx=f"{DESNZ_ELECTRICITY_CONSUMPTION_DATASET['folder']}/Subnational_electricity_consumption_statistics_2005-2024.xlsx",
+        message:
+            "Retrieving DESNZ subnational electricity consumption data"
+        params:
+            version=DESNZ_ELECTRICITY_CONSUMPTION_DATASET["version"],
+        run:
+            copy2(input["xlsx"], output["xlsx"])
+
+elif DESNZ_ELECTRICITY_CONSUMPTION_DATASET["source"] in ["primary"]:
 
     rule retrieve_desnz_electricity_consumption:
         """Downloads DESNZ subnational electricity consumption statistics for the UK."""
@@ -1296,10 +1325,14 @@ if (INSTRAT_CO2_PRICES_DATASET := dataset_version("instrat_co2_prices"))["source
 
     rule retrieve_instrat_co2_prices:
         """Downloads EU ETS CO2 allowance price time series from the Instrat energy API."""
+        cache: True
         output:
             csv=f"{INSTRAT_CO2_PRICES_DATASET['folder']}/prices_eu_ets_all.csv",
         log:
             "logs/retrieve_instrat_co2_prices.log",
+        params:
+            # The API is unversioned, so the cache key rolls over once a day.
+            retrieved=datetime.now().date().isoformat(),
         retries: 2
         resources:
             mem_mb=5000,
