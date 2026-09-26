@@ -2,17 +2,36 @@
 #
 # SPDX-License-Identifier: MIT
 
+# Local modules the network plot scripts import (via plot_power_network), so
+# the provenance hash of each cached plot covers the code that runs.
+NETWORK_PLOT_CODE = [
+    "scripts/plot_power_network.py",
+    "scripts/plot_summary.py",
+    "scripts/make_summary.py",
+    "scripts/prepare_sector_network.py",
+    "scripts/add_electricity.py",
+    "scripts/co2_budget.py",
+    "scripts/build_co2_totals.py",
+    "scripts/build_transport_demand.py",
+    "scripts/definitions/heat_sector.py",
+    "scripts/definitions/heat_system.py",
+    "scripts/definitions/heat_system_type.py",
+]
+
 if config["foresight"] != "perfect":
 
     rule plot_base_network:
         """Plots the base transmission network topology with line and link capacities on a map."""
+        cache: True
         input:
+            code_dependencies=code_dependencies(
+                "scripts/plot_base_network.py",
+                *NETWORK_PLOT_CODE,
+            ),
             network=resources("networks/base.nc"),
             onshore_regions=resources("onshore_regions_base.geojson"),
         output:
             map=resources("maps/base_network.pdf"),
-        benchmark:
-            benchmarks("plot_base_network")
         threads: 1
         resources:
             mem_mb=4000,
@@ -23,13 +42,16 @@ if config["foresight"] != "perfect":
 
     rule plot_clustered_network:
         """Plots the clustered transmission network with existing and planned HVDC links on a map."""
+        cache: True
         input:
+            code_dependencies=code_dependencies(
+                "scripts/plot_power_network_clustered.py",
+                *NETWORK_PLOT_CODE,
+            ),
             network=resources("networks/clustered.nc"),
             regions=resources("onshore_regions.geojson"),
         output:
             map=resources("maps/clustered_network.pdf"),
-        benchmark:
-            benchmarks("plot_clustered_network")
         threads: 1
         resources:
             mem_mb=4000,
@@ -40,15 +62,15 @@ if config["foresight"] != "perfect":
 
     rule plot_power_network:
         """Plots the optimised power network with regional technology costs and grid expansion."""
+        cache: True
         input:
+            code_dependencies=code_dependencies(*NETWORK_PLOT_CODE),
             network=RESULTS + "networks/solved_{horizon}.nc",
             regions=resources("onshore_regions.geojson"),
         output:
             map=RESULTS + "maps/static/power_network_{horizon}.pdf",
         log:
             RESULTS + "logs/plot_power_network_{horizon}.log",
-        benchmark:
-            (RESULTS + "benchmarks/plot_power_network_{horizon}")
         threads: 2
         resources:
             mem_mb=10000,
@@ -60,15 +82,18 @@ if config["foresight"] != "perfect":
 
     rule plot_hydrogen_network:
         """Plots the optimised hydrogen pipelines, storage, electrolysis and fuel cells on a map."""
+        cache: True
         input:
+            code_dependencies=code_dependencies(
+                "scripts/plot_hydrogen_network.py",
+                *NETWORK_PLOT_CODE,
+            ),
             network=RESULTS + "networks/solved_{horizon}.nc",
             regions=resources("onshore_regions.geojson"),
         output:
             map=RESULTS + "maps/static/h2_network_{horizon}.pdf",
         log:
             RESULTS + "logs/plot_hydrogen_network_{horizon}.log",
-        benchmark:
-            (RESULTS + "benchmarks/plot_hydrogen_network_{horizon}")
         threads: 2
         resources:
             mem_mb=10000,
@@ -80,15 +105,18 @@ if config["foresight"] != "perfect":
 
     rule plot_gas_network:
         """Plots the optimised methane pipeline network and regional gas sources on a map."""
+        cache: True
         input:
+            code_dependencies=code_dependencies(
+                "scripts/plot_gas_network.py",
+                *NETWORK_PLOT_CODE,
+            ),
             network=RESULTS + "networks/solved_{horizon}.nc",
             regions=resources("onshore_regions.geojson"),
         output:
             map=RESULTS + "maps/static/ch4_network_{horizon}.pdf",
         log:
             RESULTS + "logs/plot_gas_network_{horizon}.log",
-        benchmark:
-            (RESULTS + "benchmarks/plot_gas_network_{horizon}")
         threads: 2
         resources:
             mem_mb=10000,
@@ -99,35 +127,43 @@ if config["foresight"] != "perfect":
 
     rule plot_balance_map:
         """Plots a static map of the nodal energy balance, flows and prices for one bus carrier."""
+        cache: True
         input:
+            code_dependencies=code_dependencies(
+                "scripts/plot_balance_map.py",
+                *NETWORK_PLOT_CODE,
+            ),
             network=RESULTS + "networks/solved_{horizon}.nc",
             regions=resources("onshore_regions.geojson"),
         output:
             RESULTS + "maps/static/balance_map_{carrier}_{horizon}.pdf",
         log:
             RESULTS + "logs/plot_balance_map_{horizon}_{carrier}.log",
-        benchmark:
-            (RESULTS + "benchmarks/plot_balance_map_{horizon}_{carrier}")
         threads: 1
         resources:
             mem_mb=8000,
         params:
             plotting=config_provider("plotting"),
             settings=lambda w: config_provider("plotting", "balance_map", w.carrier),
+            carrier="{carrier}",
         script:
             scripts("plot_balance_map.py")
 
     rule plot_balance_map_interactive:
         """Plots an interactive map of the nodal energy balance, flows and prices for one bus carrier."""
+        cache: True
         input:
+            code_dependencies=code_dependencies(
+                "scripts/plot_balance_map_interactive.py",
+                "scripts/add_electricity.py",
+                "scripts/co2_budget.py",
+            ),
             network=RESULTS + "networks/solved_{horizon}.nc",
             regions=resources("onshore_regions.geojson"),
         output:
             RESULTS + "maps/interactive/balance_map_{carrier}_{horizon}.html",
         log:
             RESULTS + "logs/plot_balance_map_interactive/{horizon}_{carrier}.log",
-        benchmark:
-            RESULTS + "benchmarks/plot_balance_map_interactive/{horizon}_{carrier}"
         threads: 1
         resources:
             mem_mb=8000,
@@ -137,6 +173,7 @@ if config["foresight"] != "perfect":
             settings=lambda w: config_provider(
                 "plotting", "balance_map_interactive", w.carrier
             ),
+            carrier="{carrier}",
         script:
             scripts("plot_balance_map_interactive.py")
 
@@ -174,7 +211,12 @@ if config["foresight"] != "perfect":
 
 rule make_summary:
     """Computes summary tables of costs, capacities, energy balances, prices and metrics."""
+    cache: True
     input:
+        code_dependencies=code_dependencies(
+            "scripts/make_summary.py",
+            "scripts/co2_budget.py",
+        ),
         networks=lambda w: (
             [
                 RESULTS
@@ -204,8 +246,6 @@ rule make_summary:
         cumulative_costs=RESULTS + "csvs/cumulative_costs.csv",
     log:
         RESULTS + "logs/make_summary.log",
-    benchmark:
-        RESULTS + "benchmarks/make_summary"
     threads: 1
     resources:
         mem_mb=16000,
@@ -249,15 +289,15 @@ rule plot_summary:
 
 rule plot_balance_timeseries:
     """Plots stacked energy balance time series per carrier at annual and monthly resolution."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/plot_balance_timeseries.py"),
         network=RESULTS + "networks/solved_{horizon}.nc",
         rc="matplotlibrc",
     output:
         directory(RESULTS + "graphs/balance_timeseries_{horizon}"),
     log:
         RESULTS + "logs/plot_balance_timeseries_{horizon}.log",
-    benchmark:
-        RESULTS + "benchmarks/plot_balance_timeseries_{horizon}"
     threads: 16
     resources:
         mem_mb=10000,
@@ -271,15 +311,15 @@ rule plot_balance_timeseries:
 
 rule plot_heatmap_timeseries:
     """Plots hour-by-day heatmaps of utilisation rates, marginal prices and storage levels."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/plot_heatmap_timeseries.py"),
         network=RESULTS + "networks/solved_{horizon}.nc",
         rc="matplotlibrc",
     output:
         directory(RESULTS + "graphs/heatmap_timeseries_{horizon}"),
     log:
         RESULTS + "logs/plot_heatmap_timeseries_{horizon}.log",
-    benchmark:
-        RESULTS + "benchmarks/plot_heatmap_timeseries_{horizon}"
     threads: 16
     resources:
         mem_mb=10000,
@@ -340,14 +380,17 @@ rule build_ambient_air_temperature_yearly_average:
 
 rule plot_cop_profiles:
     """Plots interactive heat pump coefficient of performance profiles per region."""
+    cache: True
     input:
+        code_dependencies=code_dependencies(
+            "scripts/plot_cop_profiles/plot_cop_profiles.py",
+            "scripts/definitions/heat_system_type.py",
+        ),
         cop_profiles=resources("cop_profiles_{horizon}.nc"),
     output:
         html=RESULTS + "graphs/cop_profiles_{horizon}.html",
     log:
         RESULTS + "logs/plot_cop_profiles_{horizon}.log",
-    benchmark:
-        RESULTS + "benchmarks/plot_cop_profiles/{horizon}"
     resources:
         mem_mb=10000,
     script:

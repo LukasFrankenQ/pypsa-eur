@@ -59,7 +59,7 @@ if __name__ == "__main__":
 
     regions = gpd.read_file(snakemake.input.regions).set_index("name")
     config = snakemake.params.plotting
-    carrier = snakemake.wildcards.carrier
+    carrier = snakemake.params.carrier
     settings = snakemake.params.settings
     carrier = carrier.replace(
         "_", " "

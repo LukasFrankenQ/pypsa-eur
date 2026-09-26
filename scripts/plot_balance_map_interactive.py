@@ -110,7 +110,7 @@ if __name__ == "__main__":
     pypsa.options.params.statistics.nice_names = False
 
     regions = gpd.read_file(snakemake.input.regions).set_index("name")
-    carrier = snakemake.wildcards.carrier
+    carrier = snakemake.params.carrier
     carrier = carrier.replace("_", " ")
 
     if carrier not in n.buses.carrier.unique():
