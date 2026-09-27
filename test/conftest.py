@@ -14,6 +14,12 @@ import pytest
 import yaml
 
 
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "slow: runs the workflow for real, deselected by unit-tests"
+    )
+
+
 @pytest.fixture(scope="function")
 def scigrid_network():
     return pypsa.examples.scigrid_de(from_master=True)

@@ -203,7 +203,8 @@ clean-tests = """
     snakemake -call results/test-elec-tyndp/maps/static/power_network_2030.pdf --configfile config/test/config.tyndp.yaml --delete-all-output ;
 	echo "All test outputs have been cleaned up."
 """
-unit-tests = "pytest test"
+unit-tests = "pytest test -m 'not slow'"
+cache-roundtrip-test = "pytest test/test_caching.py -m slow -v"
 
 all-tests = {depends-on = ["integration-tests", "clean-tests", "unit-tests"]}
 
