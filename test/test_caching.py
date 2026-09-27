@@ -907,3 +907,52 @@ def test_cache_dry_run_parses_cleanly(cache_dir: Path) -> None:
         check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def _shared_cachefiles(
+    entries: dict[CacheKey, list[Path]],
+) -> dict[Path, list[CacheKey]]:
+    """Return every cache file claimed by more than one job, with its owners."""
+    owners: dict[Path, list[CacheKey]] = {}
+    for key, cachefiles in entries.items():
+        for cachefile in cachefiles:
+            owners.setdefault(cachefile, []).append(key)
+    return {path: keys for path, keys in owners.items() if len(keys) > 1}
+
+
+def test_shared_cachefiles_reports_a_duplicated_key() -> None:
+    shared = Path("cache/abc.nc")
+    entries: dict[CacheKey, list[Path]] = {
+        ("rule_a", ()): [shared],
+        ("rule_b", (("horizon", "2050"),)): [shared, Path("cache/def.nc")],
+        ("rule_c", ()): [Path("cache/ghi.nc")],
+    }
+    assert _shared_cachefiles(entries) == {
+        shared: [("rule_a", ()), ("rule_b", (("horizon", "2050"),))]
+    }
+
+
+@pytest.mark.parametrize(
+    "configfile",
+    [
+        ELEC_CONFIG,
+        Path("config/test/config.overnight.yaml"),
+        Path("config/test/config.myopic.yaml"),
+    ],
+    ids=lambda path: path.stem,
+)
+def test_no_two_jobs_share_a_cache_entry(configfile: Path, cache_dir: Path) -> None:
+    """
+    No two jobs in a test config's default DAG resolve to the same cache file.
+
+    Two jobs sharing a provenance hash would get one result between them, the
+    second fetching the first one's output instead of running.
+    """
+    entries = cache_entries(configfile, [], cache_dir)
+    assert entries
+    shared = {
+        path.name: [f"{rule}{dict(wildcards)}" for rule, wildcards in keys]
+        for path, keys in _shared_cachefiles(entries).items()
+    }
+    assert shared == {}
+
