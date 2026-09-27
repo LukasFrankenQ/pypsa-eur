@@ -960,12 +960,7 @@ def test_shared_cachefiles_reports_a_duplicated_key() -> None:
     ids=lambda path: path.stem,
 )
 def test_no_two_jobs_share_a_cache_entry(configfile: Path, cache_dir: Path) -> None:
-    """
-    No two jobs in a test config's default DAG resolve to the same cache file.
-
-    Two jobs sharing a provenance hash would get one result between them, the
-    second fetching the first one's output instead of running.
-    """
+    """No two jobs in a test config's default DAG resolve to the same cache file."""
     entries = cache_entries(configfile, [], cache_dir)
     assert entries
     shared = {
@@ -993,8 +988,7 @@ def _was_fetched(output: Path, fetched: set[Path]) -> bool:
     """
     Return whether output, or the directory holding it, was symlinked from cache.
 
-    A fetched directory output logs one line per entry, never the directory
-    itself, and a file inside a fetched directory logs nothing of its own.
+    A fetched directory logs its entries but never itself or the outputs inside it.
     """
     return any(
         path == output or path.is_relative_to(output) or output.is_relative_to(path)
@@ -1125,11 +1119,9 @@ def _tail(log: str, lines: int = 60) -> str:
 @pytest.mark.slow
 def test_electricity_round_trip_stores_then_fetches(tmp_path: Path) -> None:
     """
-    Run the electricity test config twice against one shared output cache.
+    Run the electricity config twice, storing into an empty cache, then fetching.
 
-    Pass 1 starts from an empty cache, so every cache-eligible job must run and
-    store. Pass 2 runs in a fresh copy of the repo, so every one of them must
-    be fetched instead, and the fetched outputs must match what pass 1 stored.
+    Pass 2 runs in a fresh copy of the repo, so no output can come from pass 1's tree.
     """
     cache_root = tmp_path / "cache"
     (cache_root / "output-cache").mkdir(parents=True)
