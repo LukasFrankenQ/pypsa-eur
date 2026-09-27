@@ -984,15 +984,19 @@ def _logged_paths(pattern: re.Pattern, log: str, workdir: Path) -> set[Path]:
     return paths
 
 
-def _was_fetched(output: Path, fetched: set[Path]) -> bool:
+def _was_fetched(output: Path, job_outputs: Sequence[Path], fetched: set[Path]) -> bool:
     """
-    Return whether output, or the directory holding it, was symlinked from cache.
+    Return whether output, or a directory of its own job holding it, was fetched.
 
     A fetched directory logs its entries but never itself or the outputs inside it.
     """
-    return any(
-        path == output or path.is_relative_to(output) or output.is_relative_to(path)
-        for path in fetched
+
+    def logged(path: Path) -> bool:
+        return any(p == path or p.is_relative_to(path) for p in fetched)
+
+    return logged(output) or any(
+        output != other and output.is_relative_to(other) and logged(other)
+        for other in job_outputs
     )
 
 
@@ -1037,10 +1041,12 @@ def test_logged_paths_parses_store_and_fetch_lines(tmp_path: Path) -> None:
 
 def test_was_fetched_covers_directory_entries() -> None:
     fetched = {Path("data/dir/x.csv"), Path("resources/a.nc")}
-    assert _was_fetched(Path("resources/a.nc"), fetched)
-    assert _was_fetched(Path("data/dir"), fetched)
-    assert _was_fetched(Path("data/dir/x.csv/inner"), fetched)
-    assert not _was_fetched(Path("resources/b.nc"), fetched)
+    job = [Path("data/dir"), Path("data/dir/nested.csv")]
+    assert _was_fetched(Path("resources/a.nc"), [], fetched)
+    assert _was_fetched(Path("data/dir"), job, fetched)
+    assert _was_fetched(Path("data/dir/nested.csv"), job, fetched)
+    assert not _was_fetched(Path("data/dir/nested.csv"), [], fetched)
+    assert not _was_fetched(Path("resources/b.nc"), [], fetched)
 
 
 def test_tree_hashes_follows_symlinks_and_skips_timestamps(tmp_path: Path) -> None:
@@ -1154,11 +1160,14 @@ def test_electricity_round_trip_stores_then_fetches(tmp_path: Path) -> None:
         f"{owner.get(output, '?')}: {output}" for output in restored
     )
     fetched = _logged_paths(FETCHED_RE, log, second)
-    not_fetched = sorted(
-        f"{owner[output]}: {output}"
-        for output in owner
-        if not _was_fetched(output, fetched)
-    )
+    not_fetched = []
+    for pairs in jobs.values():
+        outputs = [output for output, _ in pairs]
+        not_fetched += [
+            f"{owner[output]}: {output}"
+            for output in outputs
+            if not _was_fetched(output, outputs, fetched)
+        ]
     assert not_fetched == [], "not obtained from cache:\n" + "\n".join(not_fetched)
 
     second_hashes = _tree_hashes(second, list(owner))
@@ -1167,8 +1176,11 @@ def test_electricity_round_trip_stores_then_fetches(tmp_path: Path) -> None:
         for path in first_hashes.keys() | second_hashes.keys()
         if first_hashes.get(path) != second_hashes.get(path)
     )
-    assert differing == [], "fetched tree differs from stored:\n" + "\n".join(
-        f"{_owner_of(Path(path), owner)}: {path} "
-        f"{first_hashes.get(path, MISSING)} vs {second_hashes.get(path, MISSING)}"
-        for path in differing
+    assert differing == [], (
+        "fetched tree is missing files or has extra ones:\n"
+        + "\n".join(
+            f"{_owner_of(Path(path), owner)}: {path} "
+            f"{first_hashes.get(path, MISSING)} vs {second_hashes.get(path, MISSING)}"
+            for path in differing
+        )
     )
