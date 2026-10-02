@@ -1870,3 +1870,8 @@ if (CO2_REMOVAL_DATASET := dataset_version("co2_removal_data"))["source"] in [
                     )
                     with z.open(member) as src, open(path, "wb") as dst:
                         dst.write(src.read())
+
+
+# Downloads run in the main process. On a cluster's shared filesystem a job's
+# copy of a storage input races the main process's own and trips the mtime check.
+workflow.localrules(*(r.name for r in workflow.rules if r.name.startswith("retrieve_")))
