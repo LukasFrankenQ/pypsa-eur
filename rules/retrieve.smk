@@ -446,7 +446,7 @@ if (CUTOUT_DATASET := dataset_version("cutout"))["source"] in [
             "logs/retrieve_cutout/{cutout}.log",
         retries: 2
         resources:
-            mem_mb=5000,
+            mem_mb=16000,
         params:
             version=CUTOUT_DATASET["version"],
         run:

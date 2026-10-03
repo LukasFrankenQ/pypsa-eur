@@ -271,7 +271,7 @@ rule build_ship_raster:
     log:
         logs("build_ship_raster.log"),
     resources:
-        mem_mb=5000,
+        mem_mb=20000,
     script:
         scripts("build_ship_raster.py")
 
@@ -435,7 +435,7 @@ rule build_renewable_profiles:
         technology="(?!hydro).*",  # Any technology other than hydro
     threads: atlite_threads
     resources:
-        mem_mb=atlite_mem_mb(5000),
+        mem_mb=atlite_mem_mb(25000),
     params:
         snapshots=config_provider("snapshots"),
         drop_leap_day=config_provider("enable", "drop_leap_day"),
@@ -638,7 +638,7 @@ rule add_transmission_projects_and_dlr:
         logs("add_transmission_projects_and_dlr.log"),
     threads: 1
     resources:
-        mem_mb=4000,
+        mem_mb=30000,
     params:
         transmission_projects=config_provider("transmission_projects"),
         dlr=config_provider("lines", "dynamic_line_rating"),
@@ -865,7 +865,7 @@ rule cluster_electricity_demand:
     log:
         logs("cluster_electricity_demand.log"),
     resources:
-        mem_mb=3000,
+        mem_mb=10000,
     script:
         scripts("cluster_electricity_demand.py")
 

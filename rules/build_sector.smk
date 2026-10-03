@@ -743,7 +743,7 @@ rule build_solar_thermal_profiles:
         logs("build_solar_thermal_profiles_total.log"),
     threads: 16
     resources:
-        mem_mb=20000,
+        mem_mb=40000,
     params:
         snapshots=config_provider("snapshots"),
         drop_leap_day=config_provider("enable", "drop_leap_day"),
@@ -930,7 +930,7 @@ rule build_biomass_potentials:
         logs("build_biomass_potentials_{horizon}.log"),
     threads: 8
     resources:
-        mem_mb=2000,
+        mem_mb=10000,
     params:
         biomass=config_provider("biomass"),
         horizon="{horizon}",
