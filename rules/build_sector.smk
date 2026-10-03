@@ -800,7 +800,7 @@ rule build_co2_totals:
         logs("build_co2_totals.log"),
     threads: 1
     resources:
-        mem_mb=1000,
+        mem_mb=8000,
     params:
         countries=config_provider("countries"),
         emissions_scope=config_provider("co2_budget", "emissions_scope"),
