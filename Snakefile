@@ -48,10 +48,6 @@ run = config["run"]
 
 # True when the workflow was invoked with --cache (any rule list, including none).
 CACHING = workflow.workflow_settings.cache is not None
-if CACHING and run["scenarios"]["enable"]:
-    raise WorkflowError(
-        "Between-workflow caching (--cache) does not support run.scenarios.enable"
-    )
 
 scenarios = get_scenarios(run)
 

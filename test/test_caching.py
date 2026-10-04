@@ -33,6 +33,8 @@ from scripts._helpers import load_data_versions
 
 ROOT = Path(__file__).resolve().parent.parent
 ELEC_CONFIG = Path("config/test/config.electricity.yaml")
+SCENARIOS_CONFIG = Path("config/test/config.scenarios.yaml")
+SCENARIO_RUNS = ("test-elec-no-offshore-wind", "test-elec-no-onshore-wind")
 
 # A small target used to sanity-check the harness itself. Every rule feeding it
 # is cache-eligible now that build_electricity.smk is fully cached, so the
@@ -174,17 +176,86 @@ def cache_dir(tmp_path: Path) -> Path:
     return path
 
 
-def test_caching_switch_refuses_scenarios(cache_dir: Path) -> None:
-    output = dry_run(
-        ELEC_CONFIG,
-        [],
-        cache_dir,
-        extra=["--config", 'run={"scenarios": {"enable": true}}'],
+def _keys_by_run(keys: dict[CacheKey, str]) -> dict[str, dict[CacheKey, str]]:
+    """Split a scenarios DAG's keys per run, each job keyed without its run wildcard."""
+    by_run: dict[str, dict[CacheKey, str]] = {}
+    for (rule, wildcards), key in keys.items():
+        run = dict(wildcards).get("run")
+        if run is None:
+            continue
+        rest = tuple(item for item in wildcards if item[0] != "run")
+        by_run.setdefault(run, {})[(rule, rest)] = key
+    return by_run
+
+
+def test_caching_accepts_scenarios(cache_dir: Path) -> None:
+    by_run = _keys_by_run(cache_keys(SCENARIOS_CONFIG, [], cache_dir))
+    assert set(by_run) == set(SCENARIO_RUNS)
+
+
+def test_scenario_keys_move_only_with_the_scenarios_own_config(
+    cache_dir: Path,
+) -> None:
+    """
+    A scenario's override reaches the key of every job that reads it and no other.
+
+    The two scenarios differ in electricity.renewable_carriers alone, which
+    compose_network takes as a param and base_network never reads.
+    """
+    by_run = _keys_by_run(cache_keys(SCENARIOS_CONFIG, [], cache_dir))
+    first, second = (by_run[run] for run in SCENARIO_RUNS)
+    base, compose, solve = (
+        ("base_network", ()),
+        ("compose_network", (("horizon", "2030"),)),
+        ("solve_network", (("horizon", "2030"),)),
     )
-    assert (
-        "Between-workflow caching (--cache) does not support run.scenarios.enable"
-        in output
-    )
+    assert first[base] == second[base]
+    assert first[compose] != second[compose]
+    assert first[solve] != second[solve]
+
+
+def test_scenario_key_equals_the_same_config_run_without_scenarios(
+    cache_dir: Path,
+) -> None:
+    """A scenario and a plain run of its merged config share one cache entry."""
+    scenario = _keys_by_run(cache_keys(SCENARIOS_CONFIG, [], cache_dir))[
+        SCENARIO_RUNS[0]
+    ]
+    plain = _keys_by_run(
+        {
+            (rule, (*wildcards, ("run", "plain"))): key
+            for (rule, wildcards), key in cache_keys(
+                SCENARIOS_CONFIG,
+                ["results/plain/networks/solved_2030.nc"],
+                cache_dir,
+                overrides={
+                    "run": {"name": "plain", "scenarios": {"enable": False}},
+                    "electricity": {"renewable_carriers": ["solar", "onwind"]},
+                },
+            ).items()
+        }
+    )["plain"]
+    for job in (
+        ("base_network", ()),
+        ("compose_network", (("horizon", "2030"),)),
+        ("solve_network", (("horizon", "2030"),)),
+    ):
+        assert scenario[job] == plain[job]
+
+
+def test_scenario_jobs_share_a_cache_entry_only_across_runs(cache_dir: Path) -> None:
+    """
+    Two scenarios whose config agrees for a job resolve to the same cache file,
+    and nothing else in a scenarios DAG does.
+    """
+    entries = cache_entries(SCENARIOS_CONFIG, [], cache_dir)
+    assert entries
+    for cachefile, owners in _shared_cachefiles(entries).items():
+        jobs = {
+            (rule, tuple(item for item in wildcards if item[0] != "run"))
+            for rule, wildcards in owners
+        }
+        assert len(jobs) == 1, f"{cachefile.name}: {owners}"
 
 
 def test_caching_switch_no_cache_lines_without_flag() -> None:
