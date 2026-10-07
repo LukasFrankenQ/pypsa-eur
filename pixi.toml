@@ -123,7 +123,7 @@ snakemake-logger-plugin-snkmt = "==0.1.6" # For better pypsa-app integration
 # dependency outputs in the hash). Back to conda snakemake-minimal once a release
 # carries them (upstream PRs pending).
 [pypi-dependencies]
-snakemake = { git = "https://github.com/lkstrp/snakemake.git", rev = "cc83dd38f7e6aeba9c790dcf5372dc034ad2bcd5" }
+snakemake = { git = "https://github.com/lkstrp/snakemake.git", rev = "6a15e65d0a937859ee1bd734c8fc526dfd10991c" }
 
 [target.unix.dependencies]
 snakemake-executor-plugin-slurm = ">=1.9.2"
