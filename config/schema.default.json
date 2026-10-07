@@ -10535,6 +10535,13 @@
       "description": "Switch to retrieve the tutorial data set instead of the full data set.",
       "type": "boolean"
     },
+    "custom_rules": {
+      "description": "Extra Snakemake rule files included after the built-in rules. Paths are relative to the workflow root, or absolute.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "logging": {
       "description": "Configuration for top level `logging` settings.",
       "properties": {

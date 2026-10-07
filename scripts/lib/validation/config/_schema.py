@@ -98,6 +98,10 @@ class ConfigSchema(BaseModel):
         False,
         description="Switch to retrieve the tutorial data set instead of the full data set.",
     )
+    custom_rules: list[str] = Field(
+        default_factory=list,
+        description="Extra Snakemake rule files included after the built-in rules. Paths are relative to the workflow root, or absolute.",
+    )
     logging: LoggingConfig = Field(
         default_factory=LoggingConfig,
         description="Logging configuration for the workflow",

@@ -111,6 +111,14 @@ include: "rules/postprocess.smk"
 include: "rules/development.smk"
 
 
+# Extra rule files listed in config["custom_rules"] (relative to the workflow
+# root, or absolute). The output-category lists below (CORE_OUTPUTS etc.) are
+# defined after this point and are not available to them at include time.
+for _rule_file in config["custom_rules"]:
+
+    include: _rule_file
+
+
 # Define output categories based on foresight mode
 # This follows the same pattern as postprocess.smk for consistency
 
