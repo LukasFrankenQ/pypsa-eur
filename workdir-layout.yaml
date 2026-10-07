@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: Contributors to PyPSA-Eur <https://github.com/pypsa/pypsa-eur>
+#
+# SPDX-License-Identifier: CC0-1.0
+
+# Workdir layout contract for tools that run this workflow on a remote backend.
+# Not read by Snakemake.
+# pull: what a run on a remote backend brings back to the hub.
+# keep: trees the cluster owns, which a push never deletes from the mirror.
+pull:
+  - /results/**
+  - /logs/**
+  - /resources/onshore_regions.geojson
+keep:
+  - /data/
+  - /resources/
+  - /benchmarks/
+  - /cutouts/
+  - /.snakemake/
