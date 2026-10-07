@@ -90,6 +90,23 @@ Switch to retrieve the tutorial data set instead of the full data set.
 ```
 
 
+## `custom_rules` {#custom_rules_cf}
+
+Extra Snakemake rule files the Snakefile includes after the built-in rules.
+Paths are relative to the workflow root, or absolute. The output-category
+lists (`CORE_OUTPUTS` etc.) are defined after the include, so a custom rule
+file cannot use them yet.
+
+- **Type:** list of strings
+- **Default:** `[]`
+
+**YAML Syntax**
+
+```yaml
+{{ yaml_section("custom_rules") }}
+```
+
+
 ## `logging` {#logging_cf}
 
 Configuration for top level `logging` settings.
