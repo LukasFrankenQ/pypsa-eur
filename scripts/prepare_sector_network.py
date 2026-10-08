@@ -2579,7 +2579,7 @@ def add_EVs(
         n.add(
             "Store",
             spatial.nodes,
-            suffix=" EV battery",
+            suffix=" EV battery store",
             bus=spatial.nodes + " EV battery",
             carrier="EV battery",
             e_cyclic=True,
@@ -3147,7 +3147,7 @@ def add_heat(
         if options["heat_vent"][heat_system.system_type.value]:
             n.add(
                 "Generator",
-                nodes + f" {heat_system} heat vent",
+                nodes + f" {heat_system} heat vent generator",
                 bus=nodes + f" {heat_system} heat",
                 location=nodes,
                 carrier=f"{heat_system} heat vent",
@@ -3189,7 +3189,7 @@ def add_heat(
         n.add(
             "Load",
             nodes,
-            suffix=f" {heat_system} heat",
+            suffix=f" {heat_system} heat load",
             bus=nodes + f" {heat_system} heat",
             carrier=f"{heat_system} heat",
             p_set=heat_load.loc[n.snapshots],
@@ -3309,7 +3309,7 @@ def add_heat(
             n.add(
                 "Store",
                 nodes,
-                suffix=f" {heat_system} water tanks",
+                suffix=f" {heat_system} water tanks store",
                 bus=nodes + f" {heat_system} water tanks",
                 e_cyclic=True,
                 e_nom_extendable=True,
@@ -3401,7 +3401,7 @@ def add_heat(
             n.add(
                 "Store",
                 nodes,
-                suffix=f" {heat_system} water pits",
+                suffix=f" {heat_system} water pits store",
                 bus=nodes + f" {heat_system} water pits",
                 e_cyclic=True,
                 e_nom_extendable=True,
@@ -3457,7 +3457,7 @@ def add_heat(
             n.add(
                 "Store",
                 nodes,
-                suffix=f" {heat_system} aquifer thermal energy storage",
+                suffix=f" {heat_system} aquifer thermal energy storage store",
                 bus=nodes + f" {heat_system} aquifer thermal energy storage",
                 e_cyclic=True,
                 e_nom_extendable=True,
@@ -3825,7 +3825,7 @@ def add_heat(
         for name in n.loads[
             n.loads.carrier.isin([str(x) + " heat" for x in HeatSystem])
         ].index:
-            node = n.buses.loc[name, "location"]
+            node = n.buses.loc[n.loads.at[name, "bus"], "location"]
             ct = pop_layout.loc[node, "ct"]
 
             # weighting 'f' depending on the size of the population at the node
