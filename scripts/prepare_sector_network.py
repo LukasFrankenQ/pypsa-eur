@@ -746,7 +746,6 @@ def add_co2_tracking(
         n.add(
             "Link",
             spatial.co2.vents,
-            suffix=" Link",
             bus0=spatial.co2.nodes,
             bus1="co2 atmosphere",
             carrier="co2 vent",
@@ -2579,7 +2578,7 @@ def add_EVs(
         n.add(
             "Store",
             spatial.nodes,
-            suffix=" EV battery store",
+            suffix=" EV battery Store",
             bus=spatial.nodes + " EV battery",
             carrier="EV battery",
             e_cyclic=True,
@@ -3147,7 +3146,7 @@ def add_heat(
         if options["heat_vent"][heat_system.system_type.value]:
             n.add(
                 "Generator",
-                nodes + f" {heat_system} heat vent generator",
+                nodes + f" {heat_system} heat vent Generator",
                 bus=nodes + f" {heat_system} heat",
                 location=nodes,
                 carrier=f"{heat_system} heat vent",
@@ -3309,7 +3308,7 @@ def add_heat(
             n.add(
                 "Store",
                 nodes,
-                suffix=f" {heat_system} water tanks store",
+                suffix=f" {heat_system} water tanks Store",
                 bus=nodes + f" {heat_system} water tanks",
                 e_cyclic=True,
                 e_nom_extendable=True,
@@ -3401,7 +3400,7 @@ def add_heat(
             n.add(
                 "Store",
                 nodes,
-                suffix=f" {heat_system} water pits store",
+                suffix=f" {heat_system} water pits Store",
                 bus=nodes + f" {heat_system} water pits",
                 e_cyclic=True,
                 e_nom_extendable=True,
@@ -3457,7 +3456,7 @@ def add_heat(
             n.add(
                 "Store",
                 nodes,
-                suffix=f" {heat_system} aquifer thermal energy storage store",
+                suffix=f" {heat_system} aquifer thermal energy storage Store",
                 bus=nodes + f" {heat_system} aquifer thermal energy storage",
                 e_cyclic=True,
                 e_nom_extendable=True,
