@@ -389,9 +389,10 @@ def attach_load(
 
     n.add(
         "Load",
-        load.columns + " electricity",
+        load.columns,
+        suffix=" electricity",
         bus=load.columns,
-        p_set=load.rename(columns=lambda bus: f"{bus} electricity"),
+        p_set=load,
         carrier="electricity",
     )
 
