@@ -3188,7 +3188,7 @@ def add_heat(
         n.add(
             "Load",
             nodes,
-            suffix=f" {heat_system} heat load",
+            suffix=f" {heat_system} heat demand",
             bus=nodes + f" {heat_system} heat",
             carrier=f"{heat_system} heat",
             p_set=heat_load.loc[n.snapshots],
@@ -3824,7 +3824,8 @@ def add_heat(
         for name in n.loads[
             n.loads.carrier.isin([str(x) + " heat" for x in HeatSystem])
         ].index:
-            node = n.buses.loc[n.loads.at[name, "bus"], "location"]
+            bus = n.loads.at[name, "bus"]
+            node = n.buses.loc[bus, "location"]
             ct = pop_layout.loc[node, "ct"]
 
             # weighting 'f' depending on the size of the population at the node
@@ -3892,12 +3893,12 @@ def add_heat(
 
             # add for each retrofitting strength a generator with heat generation profile following the profile of the heat demand
             for strength in strengths:
-                node_name = " ".join(name.split(" ")[2::])
+                node_name = " ".join(bus.split(" ")[2::])
                 n.add(
                     "Generator",
                     [node],
                     suffix=" retrofitting " + strength + " " + node_name,
-                    bus=name,
+                    bus=bus,
                     carrier="retrofitting",
                     p_nom_extendable=True,
                     p_nom_max=dE_diff[strength]
