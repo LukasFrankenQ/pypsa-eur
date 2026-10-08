@@ -2966,10 +2966,10 @@ def build_heat_demand(
 
     # subtract from electricity load since heat demand already in heat_demand
     electric_nodes = n.loads.index[n.loads.carrier == "electricity"]
-    n.loads_t.p_set[electric_nodes] = (
-        n.loads_t.p_set[electric_nodes]
-        - electric_heat_supply.T.groupby(level=1).sum().T[electric_nodes]
-    )
+    electric_heat_by_node = electric_heat_supply.T.groupby(level=1).sum().T
+    subtrahend = electric_heat_by_node[n.loads.bus[electric_nodes]]
+    subtrahend.columns = electric_nodes
+    n.loads_t.p_set[electric_nodes] = n.loads_t.p_set[electric_nodes] - subtrahend
 
     return heat_demand
 
@@ -5498,7 +5498,7 @@ def add_industry(
             continue
         factor = (
             1
-            - industrial_demand.loc[loads_i, "current electricity"].sum()
+            - industrial_demand.loc[n.loads.bus[loads_i], "current electricity"].sum()
             / n.loads_t.p_set[loads_i].sum().sum()
         )
         n.loads_t.p_set[loads_i] *= factor

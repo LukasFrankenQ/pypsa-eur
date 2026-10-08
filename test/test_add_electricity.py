@@ -42,9 +42,11 @@ def test_attach_load(tmp_path):
 
     attach_load(n, load_path.as_posix(), scaling=2.0)
 
-    assert sorted(n.loads.index) == buses
-    assert sorted(n.loads_t.p_set.columns) == buses
-    np.testing.assert_allclose(n.loads_t.p_set[buses].values, 2.0 * values)
+    names = [f"{bus} electricity" for bus in buses]
+    assert sorted(n.loads.index) == names
+    assert sorted(n.loads.bus) == buses
+    assert sorted(n.loads_t.p_set.columns) == names
+    np.testing.assert_allclose(n.loads_t.p_set[names].values, 2.0 * values)
 
 
 def test_attach_storageunits_energy_basis():
