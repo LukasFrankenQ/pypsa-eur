@@ -769,6 +769,48 @@ def sanitize_custom_columns(n: pypsa.Network) -> None:
         n.links.reversed = n.links.reversed.astype(bool)
 
 
+def check_unique_component_names(n: pypsa.Network) -> None:
+    """
+    Check that no name is shared between component types.
+
+    All component types share one name namespace, except Shape and SubNetwork.
+
+    Parameters
+    ----------
+        n (pypsa.Network): The network object.
+
+    Raises
+    ------
+        ValueError: If a name is held by more than one component type.
+    """
+    max_listed = 20
+    owners: dict[str, list[str]] = {}
+    for c in n.components:
+        if c.name in ("Shape", "SubNetwork"):
+            continue
+        static = c.static
+        if static.empty:
+            continue
+        for name in static.index:
+            owners.setdefault(name, []).append(c.name)
+
+    clashes = {name: types for name, types in owners.items() if len(types) > 1}
+    if not clashes:
+        return
+
+    listed = [
+        f"'{name}' ({', '.join(types)})"
+        for name, types in list(clashes.items())[:max_listed]
+    ]
+    message = (
+        "Component names must be unique across component types, but these names "
+        "are used by more than one type: " + "; ".join(listed)
+    )
+    if len(clashes) > max_listed:
+        message += f"; and {len(clashes) - max_listed} more"
+    raise ValueError(message)
+
+
 def rename_techs(label: str) -> str:
     """
     Rename technology labels for better readability.

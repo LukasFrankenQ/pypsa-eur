@@ -7,7 +7,11 @@ import pypsa
 import pytest
 from pydantic import ValidationError
 
-from scripts._helpers import get_temporal_resolution, rename_network_component
+from scripts._helpers import (
+    check_unique_component_names,
+    get_temporal_resolution,
+    rename_network_component,
+)
 from scripts.lib.validation.config.clustering import _TemporalConfig
 
 
@@ -80,3 +84,38 @@ def test_get_temporal_resolution(temporal, expected):
 def test_temporal_config_rejects_invalid_settings(temporal):
     with pytest.raises(ValidationError):
         _TemporalConfig(**temporal)
+
+
+def test_check_unique_component_names_passes_for_disjoint_names():
+    network = pypsa.Network()
+    network.add("Carrier", "AC")
+    network.add("Bus", "bus 0", carrier="AC")
+    network.add("Load", "load 0", bus="bus 0")
+    check_unique_component_names(network)
+
+
+def test_check_unique_component_names_rejects_load_named_like_bus():
+    network = pypsa.Network()
+    network.add("Bus", "node")
+    network.add("Load", "node", bus="node")
+    with pytest.raises(ValueError, match="node") as excinfo:
+        check_unique_component_names(network)
+    assert "Bus" in str(excinfo.value)
+    assert "Load" in str(excinfo.value)
+
+
+def test_check_unique_component_names_includes_carriers():
+    network = pypsa.Network()
+    network.add("Carrier", "gas")
+    network.add("Bus", "gas")
+    with pytest.raises(ValueError, match="gas") as excinfo:
+        check_unique_component_names(network)
+    assert "Carrier" in str(excinfo.value)
+    assert "Bus" in str(excinfo.value)
+
+
+def test_check_unique_component_names_ignores_shapes():
+    network = pypsa.Network()
+    network.add("Bus", "node")
+    network.add("Shape", "node", geometry=None)
+    check_unique_component_names(network)
