@@ -19,7 +19,7 @@ def co2_network() -> pypsa.Network:
     n.set_snapshots(pd.date_range("2013-01-01", periods=3, freq="h"))
     n.add("Carrier", "co2", co2_emissions=1.0)
     n.add("Bus", "co2 atmosphere", carrier="co2")
-    n.add("Store", "co2 atmosphere", bus="co2 atmosphere", e_nom=1e6, e_min_pu=-1)
+    n.add("Store", "co2 atmosphere Store", bus="co2 atmosphere", e_nom=1e6, e_min_pu=-1)
     n.add("Bus", "electricity")
     n.add("Load", "load", bus="electricity", p_set=1.0)
     n.add("Generator", "gas", bus="electricity", p_nom=10.0, marginal_cost=1.0)
@@ -69,7 +69,7 @@ def test_add_co2_atmosphere_constraint_rejects_unknown_sense(
 def test_emission_stores_rejects_seeded_level(
     co2_network: pypsa.Network, attr: str, value: float | bool
 ) -> None:
-    co2_network.stores.loc["co2 atmosphere", attr] = value
+    co2_network.stores.loc["co2 atmosphere Store", attr] = value
     with pytest.raises(ValueError, match="non-zero level"):
         emission_stores(co2_network, pd.Index(["co2"]))
 
@@ -78,9 +78,9 @@ def test_emission_stores_selects_accumulating_stores(
     co2_network: pypsa.Network,
 ) -> None:
     assert list(emission_stores(co2_network, pd.Index(["co2"])).index) == [
-        "co2 atmosphere"
+        "co2 atmosphere Store"
     ]
-    co2_network.stores.loc["co2 atmosphere", "e_cyclic"] = True
+    co2_network.stores.loc["co2 atmosphere Store", "e_cyclic"] = True
     assert emission_stores(co2_network, pd.Index(["co2"])).empty
 
 
