@@ -25,6 +25,7 @@ import logging
 import pypsa
 
 from scripts._helpers import (
+    check_unique_component_names,
     configure_logging,
     load_costs,
     sanitize_custom_columns,
@@ -137,6 +138,7 @@ if __name__ == "__main__":
     sanitize_custom_columns(n)
     sanitize_carriers(n, params.nice_names, params.tech_colors)
     sanitize_locations(n)
+    check_unique_component_names(n)
     if n.investment_periods.empty:
         n.consistency_check()
     else:

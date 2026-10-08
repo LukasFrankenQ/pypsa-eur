@@ -331,6 +331,8 @@ for file name mappings and configuration changes in detail.
   from a conventional input file (e.g. 2014 in `data/nuclear_p_max_pu.csv`) no longer aborts the run
   ([#2283](https://github.com/PyPSA/pypsa-eur/pull/2283)).
 
+* Component names are now unique across component types (a Load, Link, Store or Generator no longer shares a name with another component or a bus), and `compose_network` fails if a clash remains. Examples: electricity loads `<node>` -> `<node> electricity`; heat loads `<node> <system> heat` -> `<node> <system> heat demand`; water tank stores `<node> <system> water tanks` -> `<node> <system> water tanks Store`; industry Load/Link pairs `<bus>` -> `<bus> demand` / `<bus> conversion`; fossil generators `<bus>` -> `<bus> Generator`; non-spatial CO2 buses `co2 stored` -> `EU co2 stored`. Brownfield and perfect-foresight runs cannot start from solved networks built before this change, since component names no longer match; fresh runs are consistent.
+
 * Fixed the wildcards in the output files of [build_ambient_air_temperature_yearly_average][] when running
   with scenarios and `shared_resources` ([#2303](https://github.com/PyPSA/pypsa-eur/pull/2303)).
 
