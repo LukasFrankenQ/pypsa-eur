@@ -61,6 +61,32 @@ from scripts._helpers import (
 logger = logging.getLogger(__name__)
 
 
+def shoreline_regions(
+    onshore: gpd.GeoSeries, offshore: gpd.GeoSeries, buses
+) -> gpd.GeoDataFrame:
+    """
+    Onshore region of every offshore bus, the shoreline its grid distance is measured to.
+
+    A cluster made of offshore buses alone (offshore substations at a high
+    per-country resolution) has an offshore region but no onshore region. The
+    nearest onshore region stands in for such a bus, so the distance keeps its
+    meaning as the way to the shore instead of failing the lookup.
+    """
+    buses = pd.Index(buses)
+    shapes = onshore.reindex(buses)
+    missing = buses.difference(onshore.index)
+    if not missing.empty:
+        onshore_m = onshore.to_crs(3035)
+        offshore_m = offshore.to_crs(3035)
+        for bus in missing:
+            shapes[bus] = onshore[onshore_m.distance(offshore_m.loc[bus]).idxmin()]
+        logger.warning(
+            f"Offshore-only clusters without an onshore region: {missing.tolist()}. "
+            "Shoreline distances are measured to the nearest onshore region."
+        )
+    return gpd.GeoDataFrame(geometry=shapes, crs=onshore.crs)
+
+
 if __name__ == "__main__":
     if "snakemake" not in globals():
         from scripts._helpers import mock_snakemake
@@ -114,7 +140,13 @@ if __name__ == "__main__":
             )
             shore = regions.iloc[j][["geometry"]].set_axis(missing[i])
             regions = pd.concat([regions, shore.dissolve(level=0)])
-        regions = regions.loc[offshore_regions]
+        offshore_shapes = (
+            gpd.read_file(snakemake.input.resource_regions)
+            .set_index("name")
+            .rename_axis("bus")
+            .geometry
+        )
+        regions = shoreline_regions(regions.geometry, offshore_shapes, offshore_regions)
         regions = regions.map(lambda g: _simplify_polys(g, minarea=1)).set_crs(
             regions.crs
         )
