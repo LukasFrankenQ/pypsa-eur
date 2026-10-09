@@ -59,6 +59,12 @@ idees_rename = {"GR": "EL", "GB": "UK"}
 
 eu27 = cc.EU27as("ISO2").ISO2.tolist()
 
+# A selection without any JRC-IDEES country (NO, CH, GB, BA, ...) has nothing to
+# average the fills over. These countries are then run through as a reference
+# and dropped from every output again, so such a country gets the same numbers a
+# full-Europe run gives it.
+IDEES_REFERENCE_COUNTRIES = eu27
+
 
 def idees_per_country(ct: str, base_dir: str) -> pd.DataFrame:
     """
@@ -126,6 +132,9 @@ def idees_per_country(ct: str, base_dir: str) -> pd.DataFrame:
 
     assert df.index[39] == "Distributed heat"
     ct_totals["distributed heat residential"] = df.iloc[39]
+
+    # inhabitants, the denominator of the cars-per-person fill in build_transport_data
+    ct_totals["population"] = df.loc["Population (inhabitants)"]
 
     assert df.index[43] == "Thermal uses"
     ct_totals["thermal uses residential"] = df.iloc[43]
@@ -414,7 +423,12 @@ def build_idees(
     # efficiency kgoe/100km -> ktoe/100km so that after conversion TWh/100km
     totals.loc[:, "passenger car efficiency"] /= 1e6
     # convert ktoe to TWh
-    patterns = ["passenger cars", ".*space efficiency", ".*water efficiency"]
+    patterns = [
+        "passenger cars",
+        ".*space efficiency",
+        ".*water efficiency",
+        "population",
+    ]
     exclude = totals.columns.str.fullmatch("|".join(patterns))
     totals = totals.copy()
     totals.loc[:, ~exclude] *= 11.63 / 1e3
@@ -501,7 +515,9 @@ def build_energy_totals(
 
     efficiency_keywords = ["space efficiency", "water efficiency"]
     to_drop = idees.columns[idees.columns.str.contains("|".join(efficiency_keywords))]
-    to_drop = to_drop.append(pd.Index(["passenger cars", "passenger car efficiency"]))
+    to_drop = to_drop.append(
+        pd.Index(["passenger cars", "passenger car efficiency", "population"])
+    )
 
     df = idees.reindex(new_index).drop(to_drop, axis=1)
 
@@ -736,7 +752,12 @@ def build_energy_totals(
             axis=1
         )
 
-    if "BA" in df.index:
+    if "BA" in df.index and "RS" not in df.index:
+        logger.warning(
+            "BA is selected without RS, whose data fills BA's services and road "
+            "energy; those columns stay at the Eurostat values."
+        )
+    elif "BA" in df.index:
         # fill missing data for BA (services and road energy data)
         # proportional to RS with ratio of total residential demand
         mean_BA = df.loc["BA"].loc[2014:2023, "total residential"].mean()
@@ -903,6 +924,14 @@ def build_transport_data(
         logger.info(
             f"Missing data on cars from:\n{list(missing)}\nFilling gaps with averaged data."
         )
+        if "population" in idees:
+            # reference countries outside the selection have no NUTS3 population;
+            # IDEES counts inhabitants, NUTS3 thousands
+            idees_population = (
+                idees["population"].groupby(level="country").mean().div(1e3)
+            )
+            idees_population.index.name = population.index.name
+            population = population.combine_first(idees_population)
         cars_pp = transport_data["number cars"] / population
 
         fill_values = {
@@ -1041,6 +1070,22 @@ def build_heating_efficiencies(
     return heating_efficiencies
 
 
+def drop_reference_countries(
+    df: pd.DataFrame, reference_countries: list[str]
+) -> pd.DataFrame:
+    """
+    Drop the reference countries from an output, on its country level.
+
+    A no-op when the selection held an IDEES country, so existing selections keep
+    every row they have today (CH is always carried by the Swiss balances).
+    """
+    if not reference_countries:
+        return df
+    if isinstance(df.index, pd.MultiIndex):
+        return df.drop(index=reference_countries, level=0, errors="ignore")
+    return df.drop(index=reference_countries, errors="ignore")
+
+
 if __name__ == "__main__":
     if "snakemake" not in globals():
         from scripts._helpers import mock_snakemake
@@ -1053,8 +1098,19 @@ if __name__ == "__main__":
     nuts3 = gpd.read_file(snakemake.input.nuts3_shapes).set_index("index")
     population = nuts3["pop"].groupby(nuts3.country).sum()
 
-    countries = snakemake.params.countries
+    countries = list(snakemake.params.countries)
     idees_countries = pd.Index(countries).intersection(eu27)
+    reference_countries = []
+    if idees_countries.empty:
+        reference_countries = [
+            c for c in IDEES_REFERENCE_COUNTRIES if c not in countries
+        ]
+        idees_countries = pd.Index(reference_countries)
+        logger.info(
+            f"No selected country is in JRC-IDEES; averaging the fills for {countries} "
+            f"over the reference countries {reference_countries}."
+        )
+    all_countries = countries + reference_countries
 
     eurostat = pd.read_csv(snakemake.input.eurostat)
     swiss = pd.read_csv(snakemake.input.swiss, index_col=[0, 1])
@@ -1065,19 +1121,27 @@ if __name__ == "__main__":
         idees_countries, snakemake.input.idees, nprocesses, disable_progress
     )
 
-    energy = build_energy_totals(countries, eurostat, swiss, idees)
+    energy = build_energy_totals(all_countries, eurostat, swiss, idees)
     update_residential_from_eurostat(energy, snakemake.input.eurostat_households)
-    energy.to_csv(snakemake.output.energy_name)
+    drop_reference_countries(energy, reference_countries).to_csv(
+        snakemake.output.energy_name
+    )
 
     district_heat_share = build_district_heat_share(
-        countries, energy.loc[idees_countries], snakemake.input.district_heat_share
+        all_countries, energy.loc[idees_countries], snakemake.input.district_heat_share
     )
-    district_heat_share.to_csv(snakemake.output.district_heat_share)
+    drop_reference_countries(district_heat_share, reference_countries).to_csv(
+        snakemake.output.district_heat_share
+    )
 
     transport = build_transport_data(
-        countries, population, idees, snakemake.input.swiss_transport
+        all_countries, population, idees, snakemake.input.swiss_transport
     )
-    transport.to_csv(snakemake.output.transport_name)
+    drop_reference_countries(transport, reference_countries).to_csv(
+        snakemake.output.transport_name
+    )
 
-    heating_efficiencies = build_heating_efficiencies(countries, idees)
-    heating_efficiencies.to_csv(snakemake.output.heating_efficiencies)
+    heating_efficiencies = build_heating_efficiencies(all_countries, idees)
+    drop_reference_countries(heating_efficiencies, reference_countries).to_csv(
+        snakemake.output.heating_efficiencies
+    )

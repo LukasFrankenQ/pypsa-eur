@@ -21,6 +21,13 @@ import pandas as pd
 from tqdm import tqdm
 
 from scripts._helpers import configure_logging, set_scenario_config
+from scripts.build_industrial_production_per_country import (
+    EU27_AGGREGATE,
+    industry_production_per_country,
+)
+from scripts.build_industrial_production_per_country import (
+    separate_basic_chemicals as separate_basic_chemicals_production,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -185,22 +192,46 @@ def separate_basic_chemicals(
     return demand
 
 
-def add_non_eu27_industrial_energy_demand(
-    countries: pd.Index, demand: pd.DataFrame, production: pd.DataFrame
+def eu27_aggregate_production(
+    year: int, jrc_dir: str, ammonia_fn: str, params: dict
 ) -> pd.DataFrame:
+    """
+    Industrial production of the JRC-IDEES EU27 aggregate, in kt, with basic
+    chemicals separated like build_industrial_production_per_country does.
+    """
+    production = industry_production_per_country(
+        EU27_AGGREGATE, year, None, jrc_dir, None
+    )
+    production = production.to_frame().T
+    ammonia = pd.read_csv(ammonia_fn, index_col=0)
+    ammonia = ammonia.loc[ammonia.index.intersection(eu27)].sum().to_frame().T
+    ammonia.index = [EU27_AGGREGATE]
+    separate_basic_chemicals_production(production, year, ammonia, params)
+    return production
+
+
+def add_non_eu27_industrial_energy_demand(
+    countries: pd.Index, demand: pd.DataFrame, production: pd.DataFrame, basis: pd.Index
+) -> pd.DataFrame:
+    """
+    Scale the non-EU27 countries' demand from the energy per unit of production
+    of ``basis``: the selected EU27 countries, or the EU27 aggregate when the
+    selection has none. The aggregate's own rows are dropped again.
+    """
     non_eu27 = countries.difference(eu27)
     if non_eu27.empty:
         return demand
 
-    eu27_production = production.loc[countries.intersection(eu27)].sum()
-    eu27_energy = demand.groupby(level=1).sum()
+    eu27_production = production.loc[basis].sum()
+    eu27_energy = demand.loc[basis].groupby(level=1).sum()
     eu27_averages = eu27_energy / eu27_production
 
     demand_non_eu27 = pd.concat(
         {k: v * eu27_averages for k, v in production.loc[non_eu27].iterrows()}
     )
 
-    return pd.concat([demand, demand_non_eu27])
+    demand = pd.concat([demand, demand_non_eu27])
+    return demand.drop(index=EU27_AGGREGATE, level=0, errors="ignore")
 
 
 def industrial_energy_demand(
@@ -294,14 +325,7 @@ if __name__ == "__main__":
     year = params.get("reference_year", 2019)
     countries = pd.Index(snakemake.params.countries)
 
-    demand = industrial_energy_demand(
-        countries.intersection(eu27),
-        year,
-        snakemake.input.jrc,
-        endogenous_ammonia,
-        snakemake.threads,
-        snakemake.params.disable_progressbar,
-    )
+    basis = countries.intersection(eu27)
 
     # output in MtMaterial/a
     production = (
@@ -309,9 +333,31 @@ if __name__ == "__main__":
         / 1e3
     )
 
+    if basis.empty:
+        # no selected country is in JRC-IDEES (NO, CH, GB, BA, ...): the EU27
+        # aggregate is the basis the non-EU27 countries are scaled from
+        logger.info(
+            f"No selected country is in JRC-IDEES; scaling {countries.tolist()} "
+            "from the EU27 aggregate."
+        )
+        basis = pd.Index([EU27_AGGREGATE])
+        eu27_production = eu27_aggregate_production(
+            year, snakemake.input.jrc, snakemake.input.ammonia_production, params
+        )
+        production = pd.concat([production, eu27_production / 1e3])
+
+    demand = industrial_energy_demand(
+        basis,
+        year,
+        snakemake.input.jrc,
+        endogenous_ammonia,
+        snakemake.threads,
+        snakemake.params.disable_progressbar,
+    )
+
     demand = separate_basic_chemicals(demand, production, params, endogenous_ammonia)
 
-    demand = add_non_eu27_industrial_energy_demand(countries, demand, production)
+    demand = add_non_eu27_industrial_energy_demand(countries, demand, production, basis)
 
     # for format compatibility
     demand = demand.stack(future_stack=True).unstack(level=[0, 2])

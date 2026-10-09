@@ -1401,9 +1401,13 @@ rule build_industrial_energy_demand_per_country_today:
     """Computes today's industrial energy demand per country and sector from JRC IDEES."""
     cache: True
     input:
-        code_dependencies=code_dependencies("scripts/build_industrial_energy_demand_per_country_today.py"),
+        code_dependencies=code_dependencies(
+            "scripts/build_industrial_energy_demand_per_country_today.py",
+            "scripts/build_industrial_production_per_country.py",
+        ),
         transformation_output_coke=resources("transformation_output_coke.csv"),
         jrc=rules.retrieve_jrc_idees.output["directory"],
+        ammonia_production=resources("ammonia_production.csv"),
         industrial_production_per_country=resources(
             "industrial_production_per_country.csv"
         ),

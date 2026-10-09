@@ -100,6 +100,10 @@ def energy_atlas_distribution_keys(
         )
         group["weights"] = [w["sum"] for w in weights]
         distribution_keys.append(group["weights"] / group["weights"].sum())
+    if not distribution_keys:
+        # no selected country is covered by the Energy Atlas (NO, CH, GB, BA, ...):
+        # every region is left to the GB and NUTS3 keys upsample_load falls back on
+        return pd.Series(np.nan, index=regions.index, dtype=float)
     distribution_keys = pd.concat(distribution_keys).reindex(regions.index)
     return distribution_keys
 

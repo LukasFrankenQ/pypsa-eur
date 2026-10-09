@@ -43,6 +43,9 @@ sub_sheet_name_dict = {
 
 eu27 = cc.EU27as("ISO2").ISO2.values
 
+# JRC-IDEES ships the EU27 aggregate as a country of its own
+EU27_AGGREGATE = "EU27"
+
 jrc_names = {"GR": "EL", "GB": "UK"}
 
 sect2sub = {
@@ -205,10 +208,11 @@ def industry_production_per_country(
 
         return df
 
-    ct = "EU27" if country not in eu27 else country
+    ct = EU27_AGGREGATE if country not in eu27 else country
     demand = pd.concat([get_sector_data(s, ct) for s in sect2sub])
 
-    if country not in eu27:
+    # the aggregate itself is the reference the ratio is taken against
+    if country not in eu27 and country != EU27_AGGREGATE:
         demand *= get_energy_ratio(
             country,
             eurostat,
@@ -256,14 +260,14 @@ def industry_production(
 
 
 def separate_basic_chemicals(
-    demand: pd.DataFrame, year: int, ammonia_production: str, params: dict
+    demand: pd.DataFrame, year: int, ammonia: pd.DataFrame, params: dict
 ) -> None:
     """
     Separate basic chemicals into ammonia, chlorine, methanol and HVC.
-    """
-    # ammonia data from 2018-2022
-    ammonia = pd.read_csv(ammonia_production, index_col=0)
 
+    ``ammonia`` is the ammonia production table (kt per country and year,
+    2018-2022), ``params`` the ``industry`` config section.
+    """
     there = ammonia.index.intersection(demand.index)
     missing = demand.index.symmetric_difference(there)
 
@@ -325,7 +329,9 @@ if __name__ == "__main__":
         snakemake.params.disable_progressbar,
     )
 
-    separate_basic_chemicals(demand, year, snakemake.input.ammonia_production, params)
+    # ammonia data from 2018-2022
+    ammonia = pd.read_csv(snakemake.input.ammonia_production, index_col=0)
+    separate_basic_chemicals(demand, year, ammonia, params)
 
     demand.fillna(0.0, inplace=True)
 
