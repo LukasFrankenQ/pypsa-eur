@@ -820,7 +820,7 @@ rule build_transformation_output_coke:
         logs("build_transformation_output_coke.log"),
     threads: 1
     resources:
-        mem_mb=1000,
+        mem_mb=8000,
     script:
         scripts("build_transformation_output_coke.py")
 
@@ -1239,7 +1239,7 @@ rule build_industrial_production_per_country:
         logs("build_industrial_production_per_country.log"),
     threads: 8
     resources:
-        mem_mb=2000,
+        mem_mb=16000,
     params:
         industry=config_provider(
             "industry",
@@ -1415,7 +1415,7 @@ rule build_industrial_energy_demand_per_country_today:
         logs("build_industrial_energy_demand_per_country_today.log"),
     threads: 8
     resources:
-        mem_mb=2000,
+        mem_mb=16000,
     params:
         countries=config_provider("countries"),
         industry=config_provider(
