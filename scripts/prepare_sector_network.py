@@ -1768,6 +1768,9 @@ def insert_electricity_distribution_grid(
     v2gs = n.links.index[n.links.carrier == "V2G"]
     n.links.loc[v2gs, "bus1"] += " low voltage"
 
+    # industrial heat pumps (endogenous industry heat bands) stay out: their
+    # bus1 is a process-heat bus and they draw from the AC node like the
+    # electric steam boiler, electrolysis and Haber-Bosch
     industry = n.links.carrier.str.contains("industry (?:heat pump|electric boiler)")
     n.links.loc[industry, "bus0"] += " low voltage"
 
@@ -4759,7 +4762,8 @@ def add_industry_heat(
         p_set = demand.loc[nodes, band].values
 
         n.add("Bus", bus, location=nodes, carrier=carrier, unit="MWh_th")
-        n.add("Load", bus, bus=bus, carrier=carrier, p_set=p_set)
+        # the load is named apart from its bus: component names are unique on this fork
+        n.add("Load", bus, suffix=" demand", bus=bus, carrier=carrier, p_set=p_set)
 
         for tech in techs:
             bus0, steam, firing = supply[tech]
