@@ -270,7 +270,8 @@ def distribute_n_clusters_to_countries(
     N = n.buses.groupby(["country", "sub_network"]).size()[L.index]
 
     assert n_clusters >= len(N) and n_clusters <= N.sum(), (
-        f"Number of clusters must be {len(N)} <= n_clusters <= {N.sum()} for this selection of countries."
+        f"Number of clusters must be {len(N)} <= n_clusters <= {N.sum()} "
+        f"for this selection of countries, got {n_clusters}."
     )
 
     if isinstance(focus_weights, dict):
