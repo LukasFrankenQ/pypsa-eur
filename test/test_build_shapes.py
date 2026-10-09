@@ -72,3 +72,22 @@ def test_simplify_polys(tolerance, expected_tuple, italy_shape):
 #     offshore_shapes_gdf = eez(eez_path, country_list)
 #     assert offshore_shapes_gdf.shape == (1, 1)
 #     assert offshore_shapes_gdf.index == country_list[0]
+
+
+def test_empty_offshore_shapes_read_back_with_name_index(tmp_path):
+    """
+    A landlocked selection writes an offshore file without features; reading it
+    back loses every column, so the readers reindex before setting the index.
+    """
+
+    fn = tmp_path / "offshore_shapes.geojson"
+    empty = gpd.GeoDataFrame({"name": []}, geometry=[], crs="EPSG:4326")
+    empty.reset_index(drop=True).to_file(fn)
+
+    offshore_shapes = (
+        gpd.read_file(fn).reindex(columns=["name", "geometry"]).set_index("name")
+    )
+
+    assert offshore_shapes.empty
+    assert offshore_shapes.index.name == "name"
+    assert offshore_shapes.geometry.union_all().is_empty
