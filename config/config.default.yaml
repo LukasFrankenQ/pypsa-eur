@@ -1038,6 +1038,11 @@ sector:
     biomass_to_methanol: true
     biomass_to_methanol_cc: false
     meoh_to_oa: false
+    e_biomethanol: false
+    biogas_to_methanol: false
+    e_biogas_methanol: false
+    grey_methanol: false
+    blue_methanol: false
   ammonia: true
   min_part_load_electrolysis: 0
   min_part_load_fischer_tropsch: 0.5
@@ -1049,6 +1054,9 @@ sector:
   use_methanation_waste_heat: 0.25
   use_fuel_cell_waste_heat: 1
   use_electrolysis_waste_heat: 0.25
+  use_biofuel_waste_heat: 0.25
+  use_biosng_waste_heat: 0.25
+  use_biomethanol_waste_heat: 0.25
   electricity_transmission_grid: true
   electricity_distribution_grid: true
   electricity_grid_connection: true
@@ -1128,6 +1136,7 @@ sector:
   electrobiofuels: true
   biosng: false
   biosng_cc: false
+  e_biosng: false
   bioH2: false
   municipal_solid_waste: false
   waste_spatial: false
@@ -1168,6 +1177,22 @@ sector:
       oil: 125
   endogenous_sectors: []
   hbi_relocation: false
+  biogas_methanol:
+    biogas_carbon_intensity: 0.33
+    biogas_to_methanol:
+      efficiency: 0.6601
+      hydrogen_input: 0.0
+      investment: 3307.0
+      FOM: 0.83
+      VOM: 2.54
+      lifetime: 20.0
+    e_biogas_methanol:
+      efficiency: 0.9319
+      hydrogen_input: 0.5238
+      investment: 3165.6
+      FOM: 0.83
+      VOM: 2.388
+      lifetime: 20.0
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration/#industry_cf
 industry:

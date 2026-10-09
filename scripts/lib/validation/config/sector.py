@@ -231,6 +231,73 @@ class _MethanolConfig(BaseModel):
         False,
         description="Add methanol-to-olefins/aromatics as a way to meet naphtha demand in industry sector for high value chemicals.",
     )
+    e_biomethanol: bool = Field(
+        False,
+        description="Add hydrogen-boosted biomass-to-methanol (e-biomethanol): electrolytic hydrogen turns the capturable share of the biogenic carbon of biomass-to-methanol into additional methanol, synthesised at the methanolisation hydrogen input (Zhang et al. 2026, arXiv 2604.12080). Parameters are derived from the biomass-to-methanol and methanolisation cost rows by carbon balance.",
+    )
+    biogas_to_methanol: bool = Field(
+        False,
+        description="Add biogas-to-methanol (partial oxidation of raw biogas to methanol) on the biogas bus, parametrised by `sector.biogas_methanol.biogas_to_methanol`.",
+    )
+    e_biogas_methanol: bool = Field(
+        False,
+        description="Add hydrogen-boosted biogas-to-methanol (e-biogas-methanol) on the biogas bus, parametrised by `sector.biogas_methanol.e_biogas_methanol`.",
+    )
+    grey_methanol: bool = Field(
+        False,
+        description="Add extendable grey methanol (natural gas reforming and methanol synthesis, process CO2 vented), with the same parameters as the existing grey methanol plants.",
+    )
+    blue_methanol: bool = Field(
+        False,
+        description="Add extendable blue methanol: grey methanol whose process CO2 is captured at the SMR CC capture rate and sent to CO2 storage, at the grey capital cost plus the SMR CC over SMR difference.",
+    )
+
+
+class _BiogasMethanolRouteConfig(BaseModel):
+    """One biogas-to-methanol route of `sector.biogas_methanol`."""
+
+    efficiency: float = Field(
+        description="Methanol output per biogas input (MWh_MeOH/MWh_CH4, biogas counted by its methane content as on the biogas bus).",
+    )
+    hydrogen_input: float = Field(
+        0.0, description="Hydrogen input per biogas input (MWh_H2/MWh_CH4)."
+    )
+    investment: float = Field(
+        description="Investment per methanol output capacity (EUR/kW_MeOH), excluding the digester, whose cost the link carries from the `biogas` cost row as biogas upgrading does.",
+    )
+    FOM: float = Field(description="Fixed operation and maintenance (%/year).")
+    VOM: float = Field(description="Variable operation and maintenance (EUR/MWh_MeOH).")
+    lifetime: float = Field(description="Lifetime (years).")
+
+
+class _BiogasMethanolConfig(BaseModel):
+    """Configuration for `sector.biogas_methanol` settings."""
+
+    biogas_carbon_intensity: float = Field(
+        0.33,
+        description="Biogenic carbon in raw biogas per MWh of its methane (tCO2/MWh_CH4): the methane's own 0.198 plus the CO2 share of a 60/40 CH4/CO2 biogas. The methanol routes withdraw from the atmosphere only the carbon that ends in the methanol; a route whose methanol carbon would exceed this is refused.",
+    )
+    biogas_to_methanol: _BiogasMethanolRouteConfig = Field(
+        default_factory=lambda: _BiogasMethanolRouteConfig(
+            efficiency=0.6601,
+            investment=3307.0,
+            FOM=0.83,
+            VOM=2.54,
+            lifetime=20.0,
+        ),
+        description="Biogas partial oxidation to methanol after Park et al. 2025 (Energy Conversion and Management, doi:10.1016/j.enconman.2025.120052), as parametrised for 2040 in the e-biofuels dataset of Zhang et al. 2026 (Zenodo 18985275; energy efficiency and costs only, its carbon-in-fuel figure is inconsistent with the energy efficiency and is not used).",
+    )
+    e_biogas_methanol: _BiogasMethanolRouteConfig = Field(
+        default_factory=lambda: _BiogasMethanolRouteConfig(
+            efficiency=0.9319,
+            hydrogen_input=0.5238,
+            investment=3165.6,
+            FOM=0.83,
+            VOM=2.388,
+            lifetime=20.0,
+        ),
+        description="Biogas partial oxidation integrated with solid-oxide electrolysis hydrogen (Park et al. 2025, doi:10.1016/j.enconman.2025.120052), as parametrised for 2040 by Zhang et al. 2026 (Zenodo 18985275; energy and hydrogen balance and costs only).",
+    )
 
 
 class _TransmissionEfficiencyConfig(BaseModel):
@@ -1066,6 +1133,18 @@ class SectorConfig(BaseModel):
         0.25,
         description="Add option for using waste heat of electrolysis in district heating networks.",
     )
+    use_biofuel_waste_heat: float = Field(
+        0.25,
+        description="Share of the waste heat of biomass to liquid (with and without carbon capture) and electrobiofuels used in district heating networks, at the node of the biomass bus (needs `biomass_spatial`).",
+    )
+    use_biosng_waste_heat: float = Field(
+        0.25,
+        description="Share of the waste heat of BioSNG (with and without carbon capture) and e-bioSNG used in district heating networks, at the node of the biomass bus (needs `biomass_spatial`).",
+    )
+    use_biomethanol_waste_heat: float = Field(
+        0.25,
+        description="Share of the waste heat of biomass-to-methanol (with and without carbon capture), e-biomethanol, biogas-to-methanol and e-biogas-methanol used in district heating networks, at the node of the feedstock bus.",
+    )
 
     electricity_transmission_grid: bool = Field(
         True,
@@ -1156,6 +1235,10 @@ class SectorConfig(BaseModel):
         False,
         description="Add option for transforming solid biomass into synthesis gas with the same properties as natural gas with carbon capture.",
     )
+    e_biosng: bool = Field(
+        False,
+        description="Add hydrogen-boosted BioSNG (e-bioSNG): electrolytic hydrogen turns the capturable share of the biogenic carbon of BioSNG into additional methane, synthesised at the methanation hydrogen input (Zhang et al. 2026, arXiv 2604.12080). Parameters are derived from the BioSNG and methanation cost rows by carbon balance.",
+    )
     bioH2: bool = Field(
         False,
         description="Add option for transforming solid biomass into hydrogen with carbon capture.",
@@ -1192,4 +1275,8 @@ class SectorConfig(BaseModel):
     hbi_relocation: bool = Field(
         False,
         description="Allow the relocation of iron ore reduction step.",
+    )
+    biogas_methanol: _BiogasMethanolConfig = Field(
+        default_factory=_BiogasMethanolConfig,
+        description="Parameters of the biogas-to-methanol routes (`sector.methanol.biogas_to_methanol`, `sector.methanol.e_biogas_methanol`).",
     )

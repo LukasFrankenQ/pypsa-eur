@@ -892,6 +892,258 @@ def add_allam_gas(
     )
 
 
+def boosted_product(costs: pd.DataFrame, base: str, product: str) -> float:
+    """
+    Product output per MWh solid biomass of the hydrogen-boosted variant of a biomass route.
+
+    The boost turns the capturable share of the carbon the base route leaves unused
+    (``C stored`` times ``capture rate``) into additional product, so the carbon
+    efficiency rises from ``C in fuel`` to ``C in fuel + C stored * capture rate``
+    (Zhang et al. 2026, arXiv 2604.12080, eq. 15). This is the construction behind
+    the ``electrobiofuels`` row of technology-data.
+    """
+    carbon_efficiency = (
+        costs.at[base, "C in fuel"]
+        + costs.at[base, "C stored"] * costs.at[base, "capture rate"]
+    )
+    return (
+        carbon_efficiency
+        * costs.at["solid biomass", "CO2 intensity"]
+        / costs.at[product, "CO2 intensity"]
+    )
+
+
+def boosted_hydrogen_input(
+    costs: pd.DataFrame, base: str, synthesis: str, product_output: float
+) -> float:
+    """
+    Hydrogen input per MWh feed of a hydrogen-boosted route.
+
+    The product beyond the base route's own output is synthesised at the hydrogen
+    input of the synthesis step (``hydrogen-input`` of Fischer-Tropsch,
+    methanolisation or methanation, MWh_H2 per MWh product).
+    """
+    return (product_output - costs.at[base, "efficiency"]) * costs.at[
+        synthesis, "hydrogen-input"
+    ]
+
+
+def boosted_route_costs(
+    costs: pd.DataFrame, base: str, synthesis: str, product_output: float
+) -> tuple[float, float]:
+    """
+    Capital and marginal cost per MW feed of a hydrogen-boosted route: the base plant
+    plus synthesis capacity for the additional product (both cost rows per MW product).
+    """
+    extra = product_output - costs.at[base, "efficiency"]
+    capital_cost = (
+        costs.at[base, "capital_cost"] * costs.at[base, "efficiency"]
+        + costs.at[synthesis, "capital_cost"] * extra
+    )
+    marginal_cost = (
+        costs.at[base, "VOM"] * costs.at[base, "efficiency"]
+        + costs.at[synthesis, "VOM"] * extra
+    )
+    return capital_cost, marginal_cost
+
+
+def pair_with_hydrogen(feed_nodes, spatial: SimpleNamespace) -> pd.Index:
+    """
+    Link names pairing a feed bus with the hydrogen bus it draws from, as for
+    electrobiofuels: one link per node when either side is spatially resolved.
+    """
+    feed = pd.Index(feed_nodes)
+    h2_locations = pd.Index(spatial.h2.nodes.str.replace(" H2", ""))
+    if len(feed) == 1:
+        feed = feed.repeat(len(h2_locations))
+    return feed + " " + h2_locations
+
+
+def grey_methanol_attrs(costs: pd.DataFrame) -> dict:
+    """
+    Gas-to-methanol attributes shared by the existing grey methanol plants and the
+    extendable grey and blue methanol links: the ``grey methanol synthesis``
+    efficiency, process CO2 as the gas carbon not bound in the methanol, and SMR
+    plus methanolisation capital cost.
+    """
+    efficiency = costs.at["grey methanol synthesis", "efficiency"]
+    return dict(
+        efficiency=efficiency,
+        process_co2=costs.at["gas", "CO2 intensity"]
+        - efficiency * costs.at["methanol", "CO2 intensity"],
+        capital_cost=costs.at["SMR", "capital_cost"]
+        + costs.at["methanolisation", "capital_cost"] * efficiency,
+        lifetime=costs.at["SMR", "lifetime"],
+    )
+
+
+def add_grey_methanol(n, costs, spatial, blue=False):
+    """
+    Add extendable grey methanol (gas to methanol, process CO2 to the atmosphere) or,
+    with ``blue``, blue methanol whose process CO2 is captured at the SMR CC capture
+    rate into CO2 storage, at the SMR CC over SMR capital cost difference on top.
+    """
+    attrs = grey_methanol_attrs(costs)
+    names = pd.Index(spatial.gas.locations) + (" blue" if blue else " grey")
+    kwargs = dict(
+        bus0=spatial.gas.nodes,
+        bus1=spatial.methanol.nodes[0],
+        bus2="co2 atmosphere",
+        p_nom_extendable=True,
+        efficiency=attrs["efficiency"],
+        efficiency2=attrs["process_co2"],
+        capital_cost=attrs["capital_cost"],
+        lifetime=attrs["lifetime"],
+    )
+    if blue:
+        capture_rate = costs.at["SMR CC", "capture_rate"]
+        kwargs.update(
+            bus3=spatial.co2.nodes,
+            efficiency2=attrs["process_co2"] * (1 - capture_rate),
+            efficiency3=attrs["process_co2"] * capture_rate,
+            capital_cost=attrs["capital_cost"]
+            + costs.at["SMR CC", "capital_cost"]
+            - costs.at["SMR", "capital_cost"],
+        )
+    n.add(
+        "Link",
+        names,
+        suffix=" methanol",
+        carrier="blue methanol" if blue else "grey methanol",
+        **kwargs,
+    )
+
+
+def add_e_biomethanol(n, costs, spatial):
+    """
+    Add hydrogen-boosted biomass-to-methanol (e-biomethanol, Zhang et al. 2026):
+    biomass and electrolytic hydrogen to methanol, parameters derived from the
+    biomass-to-methanol and methanolisation rows by carbon balance.
+    """
+    product = boosted_product(costs, "biomass-to-methanol", "methanol")
+    h2 = boosted_hydrogen_input(
+        costs, "biomass-to-methanol", "methanolisation", product
+    )
+    capital_cost, marginal_cost = boosted_route_costs(
+        costs, "biomass-to-methanol", "methanolisation", product
+    )
+    n.add(
+        "Link",
+        pair_with_hydrogen(spatial.biomass.nodes, spatial),
+        suffix=" e-biomethanol",
+        bus0=spatial.biomass.nodes,
+        bus1=spatial.methanol.nodes,
+        bus2=spatial.h2.nodes,
+        bus3="co2 atmosphere",
+        carrier="e-biomethanol",
+        lifetime=costs.at["biomass-to-methanol", "lifetime"],
+        efficiency=product,
+        efficiency2=-h2,
+        efficiency3=-product * costs.at["methanol", "CO2 intensity"],
+        p_nom_extendable=True,
+        capital_cost=capital_cost,
+        marginal_cost=marginal_cost,
+    )
+
+
+def add_e_biosng(n, costs, spatial):
+    """
+    Add hydrogen-boosted BioSNG (e-bioSNG, Zhang et al. 2026): biomass and
+    electrolytic hydrogen to methane, parameters derived from the BioSNG and
+    methanation rows by carbon balance.
+    """
+    product = boosted_product(costs, "BioSNG", "gas")
+    h2 = boosted_hydrogen_input(costs, "BioSNG", "methanation", product)
+    capital_cost, marginal_cost = boosted_route_costs(
+        costs, "BioSNG", "methanation", product
+    )
+    n.add(
+        "Link",
+        pair_with_hydrogen(spatial.biomass.nodes, spatial),
+        suffix=" e-bioSNG",
+        bus0=spatial.biomass.nodes,
+        bus1=spatial.gas.nodes,
+        bus2=spatial.h2.nodes,
+        bus3="co2 atmosphere",
+        carrier="e-bioSNG",
+        lifetime=costs.at["BioSNG", "lifetime"],
+        efficiency=product,
+        efficiency2=-h2,
+        efficiency3=-product * costs.at["gas", "CO2 intensity"],
+        p_nom_extendable=True,
+        capital_cost=capital_cost,
+        marginal_cost=marginal_cost,
+    )
+
+
+def biogas_methanol_costs(n, costs, route: dict) -> tuple[float, float]:
+    """
+    Capital and marginal cost per MW biogas of a biogas-to-methanol route from its
+    `sector.biogas_methanol` parameters, plus the digester (``biogas`` capital cost),
+    which on the fork sits on the link leaving the biogas bus.
+    """
+    nyears = n.snapshot_weightings.generators.sum() / 8760.0
+    annuity = pypsa.costs.annuity(
+        costs.at["methanolisation", "discount rate"], route["lifetime"]
+    )
+    capital_cost = (
+        (annuity + route["FOM"] / 100.0) * route["investment"] * 1e3 * nyears
+    ) * route["efficiency"] + costs.at["biogas", "capital_cost"]
+    marginal_cost = route["VOM"] * route["efficiency"]
+    return capital_cost, marginal_cost
+
+
+def add_biogas_to_methanol(n, costs, spatial, params: dict, boosted: bool = False):
+    """
+    Add biogas-to-methanol, or with ``boosted`` e-biogas-methanol, on the biogas bus.
+
+    The parameters come from `sector.biogas_methanol` (Park et al. 2025). The link
+    withdraws from the atmosphere exactly the carbon bound in the methanol; a route
+    binding more carbon than the biogas carries is refused.
+    """
+    key = "e_biogas_methanol" if boosted else "biogas_to_methanol"
+    route = params[key]
+    methanol_carbon = route["efficiency"] * costs.at["methanol", "CO2 intensity"]
+    if methanol_carbon > params["biogas_carbon_intensity"] + 1e-9:
+        raise ValueError(
+            f"sector.biogas_methanol.{key}: {route['efficiency']} MWh methanol per MWh "
+            f"biogas binds {methanol_carbon:.3f} tCO2, more than the "
+            f"{params['biogas_carbon_intensity']} tCO2 the biogas carries."
+        )
+    capital_cost, marginal_cost = biogas_methanol_costs(n, costs, route)
+    kwargs = dict(
+        bus0=spatial.gas.biogas,
+        bus1=spatial.methanol.nodes,
+        p_nom_extendable=True,
+        efficiency=route["efficiency"],
+        capital_cost=capital_cost,
+        marginal_cost=marginal_cost,
+        lifetime=route["lifetime"],
+    )
+    if boosted:
+        n.add(
+            "Link",
+            pair_with_hydrogen(spatial.gas.biogas, spatial),
+            suffix=" e-biogas-methanol",
+            bus2=spatial.h2.nodes,
+            bus3="co2 atmosphere",
+            carrier="e-biogas-methanol",
+            efficiency2=-route["hydrogen_input"],
+            efficiency3=-methanol_carbon,
+            **kwargs,
+        )
+    else:
+        n.add(
+            "Link",
+            spatial.gas.biogas,
+            suffix=" to methanol",
+            bus2="co2 atmosphere",
+            carrier="biogas to methanol",
+            efficiency2=-methanol_carbon,
+            **kwargs,
+        )
+
+
 def add_biomass_to_methanol(
     n: pypsa.Network, costs: pd.DataFrame, spatial: SimpleNamespace
 ) -> None:
@@ -3981,6 +4233,35 @@ def add_methanol(
         if methanol_options["biomass_to_methanol_cc"]:
             add_biomass_to_methanol_cc(n=n, costs=costs, spatial=spatial)
 
+        if methanol_options.get("e_biomethanol", False):
+            add_e_biomethanol(n=n, costs=costs, spatial=spatial)
+
+        for boosted, key in (
+            (False, "biogas_to_methanol"),
+            (True, "e_biogas_methanol"),
+        ):
+            if not methanol_options.get(key, False):
+                continue
+            if "biogas" not in n.buses.carrier.values:
+                logger.warning(
+                    f"sector.methanol.{key} needs the biogas bus; no biogas potential, "
+                    "route skipped."
+                )
+                continue
+            add_biogas_to_methanol(
+                n=n,
+                costs=costs,
+                spatial=spatial,
+                params=options["biogas_methanol"],
+                boosted=boosted,
+            )
+
+    if methanol_options.get("grey_methanol", False):
+        add_grey_methanol(n=n, costs=costs, spatial=spatial)
+
+    if methanol_options.get("blue_methanol", False):
+        add_grey_methanol(n=n, costs=costs, spatial=spatial, blue=True)
+
     if methanol_options["methanol_to_power"]:
         add_methanol_to_power(
             n=n,
@@ -4606,8 +4887,14 @@ def add_biomass(
             carrier="electrobiofuels",
             lifetime=costs.at["electrobiofuels", "lifetime"],
             efficiency=costs.at["electrobiofuels", "efficiency-biomass"],
-            efficiency2=-costs.at["electrobiofuels", "efficiency-biomass"]
-            / costs.at["electrobiofuels", "efficiency-hydrogen"],
+            # the hydrogen the additional fuel needs at the Fischer-Tropsch hydrogen
+            # input; the row's efficiency-hydrogen under-counts it by about 7 %
+            efficiency2=-boosted_hydrogen_input(
+                costs,
+                "BtL",
+                "Fischer-Tropsch",
+                costs.at["electrobiofuels", "efficiency-biomass"],
+            ),
             efficiency3=-costs.at["solid biomass", "CO2 intensity"]
             + costs.at["BtL", "CO2 stored"]
             * (1 - costs.at["Fischer-Tropsch", "capture rate"]),
@@ -4669,6 +4956,10 @@ def add_biomass(
             * costs.at["BioSNG", "CO2 stored"],
             marginal_cost=costs.at["BioSNG", "VOM"] * costs.at["BioSNG", "efficiency"],
         )
+
+    # BioSNG with hydrogen addition (e-bioSNG, Zhang et al. 2026)
+    if options.get("e_biosng", False):
+        add_e_biosng(n, costs, spatial)
 
     if options["bioH2"]:
         name = (
@@ -6331,6 +6622,61 @@ def add_shipping(
             )
 
 
+def attach_waste_heat_at_feed(
+    n: pypsa.Network, carriers: list[str], coefficient: pd.Series | float, label: str
+) -> None:
+    """
+    Route waste heat of the links of ``carriers`` to district heating at the location
+    of their feed bus (``bus0``), on each link's first free output bus.
+
+    Biomass and biogas conversion links are named after their feed bus, not their
+    node, so they are located through the feed bus' ``location``. Links whose feed
+    bus has no urban central heat bus at its location (an ``EU`` biomass or biogas
+    bus) keep their heat unused.
+
+    ``coefficient`` is the heat output per MWh feed, a scalar or a Series indexed by
+    link name.
+    """
+    links = n.links.index[n.links.carrier.isin(carriers)]
+    if links.empty:
+        return
+    location = n.links.loc[links, "bus0"].map(n.buses.location)
+    heat_bus = location + " urban central heat"
+    usable = heat_bus.isin(n.buses.index)
+    if not usable.all():
+        logger.info(
+            f"{label} waste heat not used where the feed bus has no district heating: "
+            f"{sorted(set(location[~usable]))}"
+        )
+    if not isinstance(coefficient, pd.Series):
+        coefficient = pd.Series(coefficient, index=links)
+    for link in links[usable.values]:
+        port = 2
+        while (
+            f"bus{port}" in n.links.columns
+            and isinstance(n.links.at[link, f"bus{port}"], str)
+            and n.links.at[link, f"bus{port}"] != ""
+        ):
+            port += 1
+        for column, default in ((f"bus{port}", ""), (f"efficiency{port}", 1.0)):
+            if column not in n.links.columns:
+                n.links[column] = default
+        n.links.loc[link, f"bus{port}"] = heat_bus[link]
+        n.links.loc[link, f"efficiency{port}"] = max(float(coefficient[link]), 0.0)
+
+
+def boosted_waste_heat(n: pypsa.Network, carriers: list[str]) -> pd.Series:
+    """
+    Waste heat per MWh feed of conversion links by energy balance at 95 % useful
+    recovery: feed plus hydrogen input (``bus2`` on the hydrogen-boosted routes)
+    minus product.
+    """
+    links = n.links[n.links.carrier.isin(carriers)]
+    hydrogen = links.bus2.map(n.buses.carrier).eq("H2")
+    h2_input = (-links.efficiency2).where(hydrogen, 0.0)
+    return 0.95 * (1 + h2_input) - links.efficiency
+
+
 def add_waste_heat(
     n: pypsa.Network,
     costs: pd.DataFrame,
@@ -6458,6 +6804,36 @@ def add_waste_heat(
             n.links.loc[urban_central + " H2 Fuel Cell", "efficiency2"] = (
                 0.95 - n.links.loc[urban_central + " H2 Fuel Cell", "efficiency"]
             ) * options["use_fuel_cell_waste_heat"]
+
+        # Biofuel, BioSNG and biomethanol waste heat, located by the feed bus
+        groups = {
+            "use_biofuel_waste_heat": [
+                "biomass to liquid",
+                "biomass to liquid CC",
+                "electrobiofuels",
+            ],
+            "use_biosng_waste_heat": ["BioSNG", "BioSNG CC", "e-bioSNG"],
+            "use_biomethanol_waste_heat": [
+                "e-biomethanol",
+                "biogas to methanol",
+                "e-biogas-methanol",
+            ],
+        }
+        for key, carriers in groups.items():
+            share = options.get(key, 0.0)
+            if share:
+                attach_waste_heat_at_feed(
+                    n, carriers, boosted_waste_heat(n, carriers) * share, key
+                )
+        share = options.get("use_biomethanol_waste_heat", 0.0)
+        if share:
+            # biomass-to-methanol reports its recoverable heat itself
+            attach_waste_heat_at_feed(
+                n,
+                ["biomass-to-methanol", "biomass-to-methanol CC"],
+                costs.at["biomass-to-methanol", "efficiency-heat"] * share,
+                "use_biomethanol_waste_heat",
+            )
 
 
 def add_agriculture(
