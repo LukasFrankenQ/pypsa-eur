@@ -6665,6 +6665,29 @@
                 }
               }
             },
+            "infeasibility_diagnosis": {
+              "description": "Configuration for `solving.options.infeasibility_diagnosis` settings.",
+              "properties": {
+                "enable": {
+                  "default": true,
+                  "description": "Compute and log the irreducible inconsistent subsystem (IIS) of an infeasible model before the rule fails. Disabled, the rule fails at once with the termination condition.",
+                  "type": "boolean"
+                },
+                "time_limit": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Seconds the IIS computation may take (the solver's time limit, honoured by Gurobi). The diagnosis is logged as far as it got and the rule fails either way. Unbounded when null."
+                }
+              }
+            },
             "keep_files": {
               "default": false,
               "description": "Whether to keep LPs and MPS files after solving.",
@@ -8848,6 +8871,29 @@
         }
       }
     },
+    "_InfeasibilityDiagnosisConfig": {
+      "description": "Configuration for `solving.options.infeasibility_diagnosis` settings.",
+      "properties": {
+        "enable": {
+          "default": true,
+          "description": "Compute and log the irreducible inconsistent subsystem (IIS) of an infeasible model before the rule fails. Disabled, the rule fails at once with the termination condition.",
+          "type": "boolean"
+        },
+        "time_limit": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Seconds the IIS computation may take (the solver's time limit, honoured by Gurobi). The diagnosis is logged as far as it got and the rule fails either way. Unbounded when null."
+        }
+      }
+    },
     "_LimitMaxGrowthConfig": {
       "description": "Configuration for `sector.limit_max_growth` settings.",
       "properties": {
@@ -10258,6 +10304,29 @@
               "default": false,
               "description": "When true, links and lines can be built up to p_nom_max. When false, they can only be built up to a multiple of the unit size.",
               "type": "boolean"
+            }
+          }
+        },
+        "infeasibility_diagnosis": {
+          "description": "Configuration for `solving.options.infeasibility_diagnosis` settings.",
+          "properties": {
+            "enable": {
+              "default": true,
+              "description": "Compute and log the irreducible inconsistent subsystem (IIS) of an infeasible model before the rule fails. Disabled, the rule fails at once with the termination condition.",
+              "type": "boolean"
+            },
+            "time_limit": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Seconds the IIS computation may take (the solver's time limit, honoured by Gurobi). The diagnosis is logged as far as it got and the rule fails either way. Unbounded when null."
             }
           }
         },
@@ -15414,6 +15483,29 @@
                   "default": false,
                   "description": "When true, links and lines can be built up to p_nom_max. When false, they can only be built up to a multiple of the unit size.",
                   "type": "boolean"
+                }
+              }
+            },
+            "infeasibility_diagnosis": {
+              "description": "Configuration for `solving.options.infeasibility_diagnosis` settings.",
+              "properties": {
+                "enable": {
+                  "default": true,
+                  "description": "Compute and log the irreducible inconsistent subsystem (IIS) of an infeasible model before the rule fails. Disabled, the rule fails at once with the termination condition.",
+                  "type": "boolean"
+                },
+                "time_limit": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null,
+                  "description": "Seconds the IIS computation may take (the solver's time limit, honoured by Gurobi). The diagnosis is logged as far as it got and the rule fails either way. Unbounded when null."
                 }
               }
             },

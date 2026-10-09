@@ -113,6 +113,19 @@ class _LoadSinksConfig(ConfigModel):
         return self
 
 
+class _InfeasibilityDiagnosisConfig(ConfigModel):
+    """Configuration for `solving.options.infeasibility_diagnosis` settings."""
+
+    enable: bool = Field(
+        True,
+        description="Compute and log the irreducible inconsistent subsystem (IIS) of an infeasible model before the rule fails. Disabled, the rule fails at once with the termination condition.",
+    )
+    time_limit: PositiveFloat | None = Field(
+        None,
+        description="Seconds the IIS computation may take (the solver's time limit, honoured by Gurobi). The diagnosis is logged as far as it got and the rule fails either way. Unbounded when null.",
+    )
+
+
 class _SolvingOptionsConfig(BaseModel):
     """Configuration for `solving.options` settings."""
 
@@ -186,6 +199,10 @@ class _SolvingOptionsConfig(BaseModel):
     post_discretization: _PostDiscretizationConfig = Field(
         default_factory=_PostDiscretizationConfig,
         description="Post-discretization settings.",
+    )
+    infeasibility_diagnosis: _InfeasibilityDiagnosisConfig = Field(
+        default_factory=_InfeasibilityDiagnosisConfig,
+        description="What happens to an infeasible model before the rule fails.",
     )
     keep_files: bool = Field(
         False, description="Whether to keep LPs and MPS files after solving."

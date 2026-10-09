@@ -1374,6 +1374,9 @@ solving:
         H2 pipeline: 0.3
         gas pipeline: 0.3
       fractional_last_unit_size: false
+    infeasibility_diagnosis:
+      enable: true
+      time_limit:
     keep_files: false
     store_model: false
     model_kwargs:

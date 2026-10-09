@@ -1586,10 +1586,31 @@ if __name__ == "__main__":
         TerminationCondition.infeasible,
         TerminationCondition.infeasible_or_unbounded,
     ]:
-        labels = n.model.compute_infeasibilities()
-        logger.info(f"Labels:\n{labels}")
-        n.model.print_infeasibilities()
-        raise RuntimeError("Solving status 'infeasible'. Infeasibilities computed.")
+        diagnosis = cf_solving.get("infeasibility_diagnosis", {})
+        if not diagnosis.get("enable", True):
+            raise RuntimeError(
+                f"Solving status '{status}' with termination condition "
+                f"'{condition}'. Infeasibility diagnosis is disabled."
+            )
+        time_limit = diagnosis.get("time_limit")
+        if time_limit is not None:
+            try:
+                n.model.solver_model.setParam("TimeLimit", time_limit)
+            except AttributeError:
+                logger.warning(
+                    "The solver takes no time limit for the infeasibility "
+                    "diagnosis; computing it unbounded."
+                )
+        try:
+            labels = n.model.compute_infeasibilities()
+            logger.info(f"Labels:\n{labels}")
+            n.model.print_infeasibilities()
+        except Exception:
+            logger.warning("Infeasibility diagnosis did not complete.", exc_info=True)
+        raise RuntimeError(
+            f"Solving status '{status}' with termination condition "
+            f"'{condition}'. Infeasibilities computed."
+        )
 
     if status == SolverStatus.warning:
         raise RuntimeError("Solving status 'warning'. Discarding solution.")
