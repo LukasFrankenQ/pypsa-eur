@@ -773,12 +773,16 @@ rule build_direct_heat_source_utilisation_profiles:
     cache: True
     input:
         code_dependencies=code_dependencies("scripts/build_direct_heat_source_utilisation_profiles.py"),
+        # only where geothermal is a district-heating source: the shipped default
+        # lists geothermal for direct utilisation even when it is not
         temp_geothermal=lambda w: (
             resources("temp_geothermal.nc")
             if "geothermal"
             in config_provider(
                 "sector", "district_heating", "direct_utilisation_heat_sources"
             )(w)
+            and "geothermal"
+            in config_provider("sector", "heat_pump_sources", "urban central")(w)
             and geothermal_heat_source(w) == "geology"
             else []
         ),
