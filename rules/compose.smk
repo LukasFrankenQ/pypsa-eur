@@ -68,6 +68,7 @@ def get_compose_inputs(w):
         enable_ptes = cfg["sector"]["district_heating"]["ptes"]["enable"]
         sector_inputs = dict(
             **input_heat_source_power(w),
+            **input_geothermal_heat_steps(w),
             clustered_gas_network=(
                 rules.cluster_gas_network.output.clustered_gas_network
                 if sector["gas_network"] or sector["H2_retrofit"]
@@ -168,11 +169,6 @@ def get_compose_inputs(w):
             ),
             egs_potentials=(
                 resources("egs_potentials.csv")
-                if cfg["sector"]["enhanced_geothermal"]["enable"]
-                else []
-            ),
-            egs_overlap=(
-                resources("egs_overlap.csv")
                 if cfg["sector"]["enhanced_geothermal"]["enable"]
                 else []
             ),

@@ -307,23 +307,85 @@ rule build_dh_areas:
         scripts("build_dh_areas.py")
 
 
+def geothermal_heat_source(w):
+    return config_provider(
+        "sector", "district_heating", "limited_heat_sources", "geothermal"
+    )(w).get("source", "manz")
+
+
+rule build_geothermal_columns:
+    cache: True
+    input:
+        code_dependencies=code_dependencies("scripts/build_geothermal_columns.py"),
+        voxel=rules.retrieve_limberger_temperature.output["voxel"],
+        regions=resources("onshore_regions.geojson"),
+        availability_matrix=lambda w: (
+            resources("availability_matrix_onwind.nc")
+            if "onwind" in config_provider("electricity", "renewable_carriers")(w)
+            else []
+        ),
+        pop_layout_urban=resources("pop_layout_urban.nc"),
+        dh_areas=rules.retrieve_dh_areas.output["dh_areas"],
+    output:
+        columns=resources("geothermal_columns.nc"),
+    log:
+        logs("build_geothermal_columns.log"),
+    resources:
+        mem_mb=4000,
+    params:
+        depths_egs=[2.5, 3.5, 4.5, 5.5, 6.5],
+        depths_heat=config_provider(
+            "sector", "district_heating", "geothermal_geology", "depths"
+        ),
+        dh_area_buffer=config_provider(
+            "sector", "district_heating", "dh_areas", "buffer"
+        ),
+        full_load_hours=config_provider(
+            "sector", "district_heating", "geothermal_geology", "full_load_hours"
+        ),
+    message:
+        "Mapping the subsurface temperature model onto the onshore regions"
+    script:
+        scripts("build_geothermal_columns.py")
+
+
 rule build_geothermal_heat_potential:
     """Aggregates LAU-level geothermal heat potentials to technical potentials per model region."""
     cache: True
     input:
-        code_dependencies=code_dependencies("scripts/build_geothermal_heat_potential.py"),
-        isi_heat_potentials=rules.retrieve_geothermal_heat_utilisation_potentials.output[
-            "isi_heat_potentials"
-        ],
+        code_dependencies=code_dependencies(
+            "scripts/build_geothermal_heat_potential.py", "scripts/lib/geothermal.py"
+        ),
+        isi_heat_potentials=lambda w: (
+            rules.retrieve_geothermal_heat_utilisation_potentials.output[
+                "isi_heat_potentials"
+            ]
+            if geothermal_heat_source(w) == "manz"
+            else []
+        ),
+        lau_regions=lambda w: (
+            rules.retrieve_lau_regions.output["zip"]
+            if geothermal_heat_source(w) == "manz"
+            else []
+        ),
+        columns=lambda w: (
+            resources("geothermal_columns.nc")
+            if geothermal_heat_source(w) == "geology"
+            else []
+        ),
         onshore_regions=resources("onshore_regions.geojson"),
-        lau_regions=rules.retrieve_lau_regions.output["zip"],
     output:
         heat_source_power=resources("heat_source_power_geothermal.csv"),
+        heat_source_steps=resources("heat_source_steps_geothermal.csv"),
+        heat_source_temperature=resources("temp_geothermal.nc"),
     log:
         logs("build_heat_source_potentials_geothermal.log"),
     resources:
-        mem_mb=2000,
+        mem_mb=4000,
     params:
+        source=geothermal_heat_source,
+        geology=config_provider("sector", "district_heating", "geothermal_geology"),
+        discount_rate=config_provider("costs", "fill_values", "discount rate"),
         constant_temperature_celsius=config_provider(
             "sector",
             "district_heating",
@@ -526,6 +588,10 @@ def input_heat_source_temperature(
         heat_source_name: (
             False
             if not is_limited_heat_source[heat_source_name]
+            or (
+                heat_source_name == "geothermal"
+                and geothermal_heat_source(w) == "geology"
+            )
             else config_provider(
                 "sector",
                 "district_heating",
@@ -707,6 +773,15 @@ rule build_direct_heat_source_utilisation_profiles:
     cache: True
     input:
         code_dependencies=code_dependencies("scripts/build_direct_heat_source_utilisation_profiles.py"),
+        temp_geothermal=lambda w: (
+            resources("temp_geothermal.nc")
+            if "geothermal"
+            in config_provider(
+                "sector", "district_heating", "direct_utilisation_heat_sources"
+            )(w)
+            and geothermal_heat_source(w) == "geology"
+            else []
+        ),
         central_heating_forward_temperature_profiles=resources(
             "central_heating_forward_temperature_profiles_{horizon}.nc"
         ),
@@ -1719,30 +1794,37 @@ rule build_egs_potentials:
     """Builds enhanced geothermal capacity potentials and costs per region from gridded data."""
     cache: True
     input:
-        code_dependencies=code_dependencies("scripts/build_egs_potentials.py"),
-        egs_cost="data/egs_costs.json",
-        regions=resources("onshore_regions.geojson"),
-        air_temperature=(
-            resources("temp_air_total.nc")
-            if config_provider("sector", "enhanced_geothermal", "var_cf")
-            else []
+        code_dependencies=code_dependencies(
+            "scripts/build_egs_potentials.py", "scripts/lib/geothermal.py"
         ),
+        columns=resources("geothermal_columns.nc"),
+        regions=resources("onshore_regions.geojson"),
+        air_temperature=resources("temp_air_total.nc"),
     output:
         egs_potentials=resources("egs_potentials.csv"),
-        egs_overlap=resources("egs_overlap.csv"),
         egs_capacity_factors=resources("egs_capacity_factors.csv"),
     log:
         logs("build_egs_potentials.log"),
     threads: 1
     resources:
-        mem_mb=2000,
+        mem_mb=4000,
     params:
         snapshots=config_provider("snapshots"),
         drop_leap_day=config_provider("enable", "drop_leap_day"),
-        sector=config_provider("sector"),
+        enhanced_geothermal=config_provider("sector", "enhanced_geothermal"),
         costs=config_provider("costs"),
     script:
         scripts("build_egs_potentials.py")
+
+
+def input_geothermal_heat_steps(w):
+    if (
+        "geothermal"
+        in config_provider("sector", "heat_pump_sources", "urban central")(w)
+        and geothermal_heat_source(w) == "geology"
+    ):
+        return {"geothermal_steps": resources("heat_source_steps_geothermal.csv")}
+    return {}
 
 
 def input_heat_source_power(w):

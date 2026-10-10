@@ -1605,6 +1605,36 @@ elif (OSM_BOUNDARIES_DATASET := dataset_version("osm_boundaries"))["source"] in 
             unpack_archive(output["zip_file"], output_folder)
 
 
+if (LIMBERGER_TEMPERATURE_DATASET := dataset_version("limberger_temperature"))[
+    "source"
+] in ["primary", "archive"]:
+
+    rule retrieve_limberger_temperature:
+        cache: "omit-storage-content"
+        input:
+            voxel=storage(LIMBERGER_TEMPERATURE_DATASET["url"]),
+        output:
+            voxel=f"{LIMBERGER_TEMPERATURE_DATASET['folder']}/temperature_voxel.nc",
+        log:
+            "logs/retrieve_limberger_temperature.log",
+        retries: 2
+        threads: 1
+        message:
+            "Retrieving the Limberger et al. 3-D subsurface temperature model of Europe"
+        params:
+            version=LIMBERGER_TEMPERATURE_DATASET["version"],
+        run:
+            import hashlib
+
+            with open(input["voxel"], "rb") as f:
+                md5 = hashlib.md5(f.read()).hexdigest()
+            if md5 != "313097b377190da35b0c112cfa54b58c":
+                raise ValueError(
+                    f"temperature_voxel.nc has md5 {md5}, expected 313097b3..."
+                )
+            copy2(input["voxel"], output["voxel"])
+
+
 if (
     GEOTHERMAL_HEAT_UTILISATION_POTENTIALS_DATASET := dataset_version(
         "geothermal_heat_utilisation_potentials"

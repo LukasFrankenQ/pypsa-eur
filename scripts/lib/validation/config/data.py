@@ -341,6 +341,10 @@ class DataConfig(BaseModel):
         default_factory=_DataSourceConfig,
         description="LAU regions data source configuration.",
     )
+    limberger_temperature: _DataSourceConfig = Field(
+        default_factory=lambda: _DataSourceConfig(source="primary"),
+        description="Limberger et al. 2014 3-D subsurface temperature model of Europe (Zenodo 22149195) data source configuration.",
+    )
     aquifer_data: _DataSourceConfig = Field(
         default_factory=_DataSourceConfig,
         description="Aquifer data source configuration.",

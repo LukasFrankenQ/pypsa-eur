@@ -15,6 +15,102 @@ from pydantic import BaseModel, ConfigDict, Field
 from scripts.lib.validation.config._base import ConfigModel
 
 
+class _GeothermalDrillingCostConfig(BaseModel):
+    """ThermoGIS drilling-cost curve, EUR2020 per well: constant + linear d + quadratic d^2 (d in m)."""
+
+    constant: float = Field(250000.0, description="Constant term (EUR2020).")
+    linear: float = Field(700.0, description="Linear term (EUR2020/m).")
+    quadratic: float = Field(0.2, description="Quadratic term (EUR2020/m^2).")
+
+
+class _GeothermalHeatCalibrationConfig(BaseModel):
+    """Reference doublet for `sector.district_heating.geothermal_geology.calibration`."""
+
+    depth: float = Field(2.5, description="Depth of the reference doublet (km).")
+    production_temperature: float = Field(
+        78.0,
+        description="Wellhead temperature of the reference doublet (°C); with the hydrothermal flow and the reinjection temperature it gives 16 MW_th, the PBL 12-20 MW_th reference size.",
+    )
+    investment: float = Field(
+        1719.0,
+        description="Investment of the reference doublet (EUR/kW_th, at the PBL price level), PBL SDE++ 2026 deep geothermal (baseload) 12-20 MW_th, from realised Dutch projects.",
+    )
+
+
+class _GeothermalGeologyHeatConfig(BaseModel):
+    """Configuration for `sector.district_heating.geothermal_geology` settings."""
+
+    depths: list[float] = Field(
+        default_factory=lambda: [1.0 + 0.25 * i for i in range(13)],
+        description="Doublet depths considered (km), sampled from the Limberger et al. temperature model; each column takes its cheapest feasible one.",
+    )
+    min_temperature: float = Field(
+        70.0,
+        description="Minimum wellhead temperature (°C) of a heat-only doublet. Hours whose district-heating forward temperature exceeds the source temperature fall to the geothermal heat pump.",
+    )
+    reinjection_temperature: float = Field(
+        40.0,
+        description="Brine reinjection temperature (°C) of a heat-only doublet, cascaded use including heat pumps.",
+    )
+    hydrothermal_max_depth: float = Field(
+        3.0,
+        description="Depth (km) down to which a doublet is assumed hydrothermal (natural aquifer, no stimulation); deeper doublets are stimulated (petrothermal). The `depth_only` policy of the TU Delft module_geothermal (Egberink, Limberger et al. 2026) without a sediment map.",
+    )
+    well_spacing: float = Field(
+        1.0,
+        description="Distance between production and injection well (km); a doublet occupies 2 spacing^2 (TU Delft module_geothermal).",
+    )
+    flow_hydrothermal: float = Field(
+        100.0,
+        description="Flow of a hydrothermal doublet (kg/s), TU Delft module_geothermal.",
+    )
+    flow_stimulated: float = Field(
+        60.0,
+        description="Flow of a stimulated doublet (kg/s), TU Delft module_geothermal.",
+    )
+    pump_cost: float = Field(
+        0.6e6,
+        description="Pump cost per doublet (EUR2020, before calibration), TU Delft module_geothermal.",
+    )
+    stimulation_cost: float = Field(
+        1.03e6,
+        description="Stimulation cost per stimulated doublet (EUR2020), TU Delft module_geothermal.",
+    )
+    drilling_cost: _GeothermalDrillingCostConfig = Field(
+        default_factory=_GeothermalDrillingCostConfig,
+        description="Drilling-cost curve per well (ThermoGIS, as in the TU Delft module_geothermal).",
+    )
+    calibration: _GeothermalHeatCalibrationConfig = Field(
+        default_factory=_GeothermalHeatCalibrationConfig,
+        description="Reference doublet whose investment the drilling-cost model is scaled to; the geology then sets costs relative to it.",
+    )
+    fixed_om: float = Field(
+        118.0,
+        description="Fixed O&M (EUR/kW_th/yr, at the PBL price level), PBL SDE++ 2026 deep geothermal (baseload) 12-20 MW_th.",
+    )
+    variable_om: float = Field(
+        5.3,
+        description="Variable O&M including pumping electricity (EUR/MWh_th, at the PBL price level), PBL SDE++ 2026 deep geothermal (baseload) 12-20 MW_th.",
+    )
+    price_level_to_eur2020: float = Field(
+        0.816,
+        description="Conversion of the PBL SDE++ 2026 price level to the cost data's EUR2020: euro-area HICP (2015=100) 2020 over 2025, 105.1/128.75.",
+    )
+    lifetime: float = Field(30.0, description="Doublet lifetime (years).")
+    full_load_hours: float = Field(
+        4000.0,
+        description="Full-load hours used to rank doublets by levelised cost and to turn district-heating demand into a capacity cap (Manz et al. 2024).",
+    )
+    lcoh_bins: list[float] = Field(
+        default_factory=lambda: [40, 50, 60, 70, 80, 100, 125, 150, 200],
+        description="Upper edges (EUR2020/MWh_th, at `full_load_hours`) of the supply-curve steps per region; columns above the last edge are dropped.",
+    )
+    urban_density: float = Field(
+        1500.0,
+        description="Countries without Fraunhofer district-heating areas (outside the EU-27): a column counts with the urban share of its weather cell, urban population (`pop_layout_urban`) over this density (inhabitants/km², the Eurostat DEGURBA urban-centre threshold), at most the whole cell.",
+    )
+
+
 class _DistrictHeatingConfig(ConfigModel):
     """Configuration for `sector.district_heating` settings."""
 
@@ -99,12 +195,17 @@ class _DistrictHeatingConfig(ConfigModel):
     limited_heat_sources: dict[str, Any] = Field(
         default_factory=lambda: {
             "geothermal": {
+                "source": "geology",
                 "constant_temperature_celsius": 65,
                 "ignore_missing_regions": False,
             },
             "river_water": {"constant_temperature_celsius": False},
         },
-        description="Dictionary with names of limited heat sources (not air). Must be `river_water` / `geothermal` or another heat source in `Manz et al. 2024 <https://www.sciencedirect.com/science/article/pii/S0960148124001769>`_.",
+        description="Dictionary with names of limited heat sources (not air). Must be `river_water` / `geothermal` or another heat source in `Manz et al. 2024 <https://www.sciencedirect.com/science/article/pii/S0960148124001769>`_. `geothermal.source` is `geology` (heat-only doublets on the Limberger et al. temperature model, see `geothermal_geology`, with a per-region source temperature) or `manz` (Manz et al. hydrothermal potentials at `constant_temperature_celsius`, 65 or 85).",
+    )
+    geothermal_geology: _GeothermalGeologyHeatConfig = Field(
+        default_factory=_GeothermalGeologyHeatConfig,
+        description="Heat-only geothermal doublets on the Limberger et al. temperature model (used when `limited_heat_sources.geothermal.source` is `geology`).",
     )
     direct_utilisation_heat_sources: list[str] = Field(
         default_factory=lambda: ["geothermal"],
@@ -418,9 +519,47 @@ class _EnhancedGeothermalConfig(BaseModel):
         True,
         description="Add option for variable capacity factor (see Ricks et al. 2024).",
     )
-    sustainability_factor: float = Field(
-        0.0025,
-        description="Share of sourced heat that is replenished by the earth's core (see details in `build_egs_potentials.py <https://github.com/PyPSA/pypsa-eur/blob/master/scripts/build_egs_potentials.py>`_).",
+    max_temperature: float = Field(
+        250.0,
+        description="Cap (°C) on the production temperature fed to the Ricks & Jenkins plant fits, which are binary-cycle fits to 200 °C and linear extrapolations above.",
+    )
+    min_temperature: float = Field(
+        150.0,
+        description="Minimum reservoir temperature (°C) for an EGS power plant (binary-cycle floor, Aghahosseini & Breyer 2020).",
+    )
+    reinjection_temperature: float = Field(
+        70.0,
+        description="Brine temperature (°C) after the binary plant; sets the heat extracted per kW of electricity, i.e. the organic Rankine cycle efficiency.",
+    )
+    parasitic_fraction: float = Field(
+        0.15,
+        description="Wellfield pumping as a share of gross output; Ricks & Jenkins' output excludes it, so costs and capacity are converted to net output.",
+    )
+    availability: float = Field(
+        0.85,
+        description="Availability of the wells (`p_max_pu` of the well links); NREL ATB 2024 uses 0.80 binary / 0.90 flash.",
+    )
+    producers_per_injector: float = Field(
+        1.5,
+        description="Producer wells per injector (Ricks & Jenkins 2025 central case).",
+    )
+    flow_derating: float = Field(
+        0.77, description="Flow derating of the design flow (Ricks & Jenkins 2025)."
+    )
+    lateral_length: float = Field(
+        2286.0,
+        description="Horizontal lateral length per well (m), Ricks & Jenkins 2025.",
+    )
+    lifetime: float = Field(
+        30.0, description="Lifetime of wells and plant (years), NREL ATB 2024."
+    )
+    usd2021_to_eur: float = Field(
+        0.836,
+        description="Conversion of the cost model's USD2021 to the cost data's EUR2020: US CPI-U 2020/2021 (0.955) times the 2020 ECB reference rate (0.8755 EUR/USD).",
+    )
+    lcoe_bins: list[float] = Field(
+        default_factory=lambda: [75, 100, 125, 150, 175, 200, 250, 300, 400],
+        description="Upper edges (EUR/MWh_el, at `availability` and the cost data's discount rate) of the supply-curve steps per region; columns above the last edge are dropped.",
     )
 
 

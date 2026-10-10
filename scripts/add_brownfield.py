@@ -453,6 +453,38 @@ def adjust_renewable_capacity_limits(
     n.links.loc[limited, "p_nom_max"] = n.links.loc[limited, "p_nom_max"].clip(lower=0)
 
 
+def adjust_geothermal_capacity_limits(n: pypsa.Network, horizon: str) -> None:
+    """
+    Subtract geothermal capacity built in earlier horizons from the potential of
+    the extendable component it was built from: the EGS well links (carrier
+    `geothermal heat`) and the geothermal district-heat source generators. Earlier
+    builds carry the build year as suffix (`<name>-<year>`), the current one
+    `<name>-<horizon>`.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+    horizon : str
+        The current planning horizon.
+    """
+    for component, carrier_match in (
+        (n.links, n.links.carrier == "geothermal heat"),
+        (n.generators, n.generators.carrier.str.endswith("geothermal heat")),
+    ):
+        selected = component.loc[carrier_match]
+        existing = selected.loc[~selected.p_nom_extendable, "p_nom"]
+        if existing.empty:
+            continue
+        base = existing.index.str.replace(r"-\d{4}$", "", regex=True)
+        built = existing.groupby(base).sum()
+        current = built.index + f"-{horizon}"
+        current = current[current.isin(component.index)]
+        built = built.loc[current.str.replace(f"-{horizon}$", "", regex=True)]
+        component.loc[current, "p_nom_max"] = (
+            component.loc[current, "p_nom_max"] - built.values
+        ).clip(lower=0)
+
+
 def main(
     n: pypsa.Network,
     n_previous: pypsa.Network,
@@ -491,3 +523,4 @@ def main(
     disable_grid_expansion_if_limit_hit(n)
 
     adjust_renewable_capacity_limits(n, str(current_horizon), renewable_carriers)
+    adjust_geothermal_capacity_limits(n, str(current_horizon))

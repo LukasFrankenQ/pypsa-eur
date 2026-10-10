@@ -2,176 +2,127 @@
 #
 # SPDX-License-Identifier: MIT
 """
-Build potentials, costs and capacity factors of enhanced geothermal systems (EGS) per clustered region.
+Build supply curves of enhanced geothermal (EGS) power per onshore region from the
+subsurface temperature and the Ricks & Jenkins (2025) EGS cost model.
 
-Gridded data (1 degree by 1 degree) from Aghahosseini and Breyer (2020) gives
-the sustainable power potential and CAPEX per cell for several years; the
-data was passed on by the authors and differs from the published values.
-Costs are taken for 2020, and cells with cost data only for later years get
-their 2020 cost back-calculated with the mean cost reduction of the other
-cells. The sustainable potential is divided by the configured
-`sustainability_factor` to obtain `p_nom_max`. The area overlap of each grid
-cell with each clustered region is saved to allocate the cells to regions
-later. Capacity factors vary with the deviation of the air temperature from
-its annual mean, since air cooling is more efficient at low temperatures,
-following Ricks et al. (2022).
+For every temperature column (`build_geothermal_columns`) and fitted depth (2.5 to
+6.5 km) the cost model (`scripts/lib/geothermal.py`, doi:10.5281/zenodo.15485307,
+CC-BY-4.0) gives the plant and wellfield investment, fixed O&M, the gross electric
+output per injector and the heat it extracts. A depth is feasible where the rock
+reaches `min_temperature` (150 °C, the binary-cycle floor); the production
+temperature fed to the plant fits is capped at `max_temperature`. Costs and capacity
+are per net kW (wellfield pumping, `parasitic_fraction`, netted out), converted from
+USD2021 to EUR2020 with `usd2021_to_eur`. Each column keeps its cheapest depth by
+levelised cost (at `availability`, the cost data's discount rate and `lifetime`);
+capacity is the model's technical density times the column's ground area times the
+share of its land available for onshore wind. Columns are grouped per region into
+steps of levelised cost (`lcoe_bins`).
 
-References
-----------
-- Aghahosseini and Breyer (2020), [From hot rock to useful energy: A global estimate of enhanced geothermal systems potential](https://doi.org/10.1016/j.apenergy.2020.115769)
-- Ricks et al. (2022), [The Role of Flexible Geothermal Power in Decarbonized Electricity Systems](https://zenodo.org/records/7093330)
+The capacity factors follow the ambient-temperature dependence of binary plants
+(Ricks et al., The Role of Flexible Geothermal Power in Decarbonized Electricity
+Systems, Supplementary Figure 20, https://zenodo.org/records/7093330).
+
+Outputs
+-------
+- `resources/<run_name>/egs_potentials.csv`: one row per region and step, with the
+  net electric capacity `p_nom_max` (MW), `well_capex` and `plant_capex`
+  (EUR/kW_el), `fom` (EUR/kW_el/yr), the organic Rankine cycle efficiency
+  `efficiency` (net electricity per heat extracted), `lcoe` (EUR/MWh_el), `depth`
+  (km) and `temperature` (°C).
+- `resources/<run_name>/egs_capacity_factors.csv`: hourly capacity factors per region.
 """
 
-import json
 import logging
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 import xarray as xr
-from shapely.geometry import Point, Polygon
 
 from scripts._helpers import configure_logging, get_snapshots, set_scenario_config
+from scripts.lib.geothermal import (
+    EGS_DEPTHS_KM,
+    annuity,
+    bin_supply_curve,
+    egs_costs,
+)
 
 logger = logging.getLogger(__name__)
 
 
-def prepare_egs_data(egs_file: str) -> dict[int, gpd.GeoDataFrame]:
+def column_costs(
+    columns: xr.Dataset,
+    air_temperature: pd.Series,
+    config: dict,
+    discount_rate: float,
+) -> pd.DataFrame:
     """
-    Processes the original .json file EGS data to a more human-readable format.
+    Cheapest feasible EGS depth per temperature column with its net capacity
+    (MW_el), costs (EUR2020) and conversion efficiency.
     """
-    with open(egs_file) as f:
-        jsondata = json.load(f)
+    net = 1 - config["parasitic_fraction"]
+    to_eur = config["usd2021_to_eur"]
+    crf = annuity(config["lifetime"], discount_rate)
+    t_air = columns.bus.to_series().map(air_temperature).values + 273.15
+    area = columns.area.values * columns.land_share.values
 
-    def point_to_square(
-        p: Point, lon_extent: float = 1.0, lat_extent: float = 1.0
-    ) -> Polygon | Point:
-        try:
-            x, y = p.coords.xy[0][0], p.coords.xy[1][0]
-        except IndexError:
-            return p
-
-        return Polygon(
-            [
-                [x - lon_extent / 2, y - lat_extent / 2],
-                [x - lon_extent / 2, y + lat_extent / 2],
-                [x + lon_extent / 2, y + lat_extent / 2],
-                [x + lon_extent / 2, y - lat_extent / 2],
-            ]
+    best = None
+    for depth in EGS_DEPTHS_KM:
+        t_res = columns.temperature.sel(depth=depth).values
+        out = egs_costs(
+            t_res,
+            t_air,
+            depth,
+            producers_per_injector=config["producers_per_injector"],
+            lateral_length_m=config["lateral_length"],
+            flow_derating=config["flow_derating"],
+            max_temperature_c=config["max_temperature"],
+            reinjection_temperature_c=config["reinjection_temperature"],
         )
-
-    years = [2015, 2020, 2025, 2030, 2035, 2040, 2045, 2050]
-    lcoes = ["LCOE50", "LCOE100", "LCOE150"]
-
-    egs_data = {}
-
-    for year in years:
-        df = pd.DataFrame(columns=["Lon", "Lat", "CAPEX", "HeatSust", "PowerSust"])
-
-        for lcoe in lcoes:
-            for country_data in jsondata[lcoe]:
-                try:
-                    country_df = pd.DataFrame(
-                        columns=df.columns,
-                        index=range(len(country_data[0][years.index(year)]["Lon"])),
-                    )
-                except TypeError:
-                    country_df = pd.DataFrame(columns=df.columns, index=range(0))
-
-                for col in df.columns:
-                    country_df[col] = country_data[0][years.index(year)][col]
-
-                if country_df.dropna().empty:
-                    continue
-                elif df.empty:
-                    df = country_df.dropna()
-                else:
-                    df = pd.concat((df, country_df.dropna()), ignore_index=True)
-
-        gdf = gpd.GeoDataFrame(
-            df.drop(columns=["Lon", "Lat"]), geometry=gpd.points_from_xy(df.Lon, df.Lat)
-        ).reset_index(drop=True)
-
-        gdf["geometry"] = gdf.geometry.apply(lambda geom: point_to_square(geom))
-        egs_data[year] = gdf
-
-    return egs_data
-
-
-def prepare_capex(prepared_data: dict[int, gpd.GeoDataFrame]) -> gpd.GeoDataFrame:
-    """
-    The source paper provides only data for year and regions where LCOE <
-    100Euro/MWh. However, this implementations starts with the costs for 2020
-    for all regions and then adjusts the costs according to the user's chosen
-    setting in the config file.
-
-    As such, for regions where cost data is available only from, say,
-    2035, we need to reverse-engineer the costs for 2020. This is done
-    in the following (unfortunately verbose) function.
-    """
-
-    default_year = 2020
-
-    # obtains all available CAPEX data
-    capex_df = pd.DataFrame(columns=prepared_data.keys())
-
-    for year in capex_df.columns:
-        year_data = prepared_data[year].groupby("geometry").mean().reset_index()
-
-        for g in year_data.geometry:
-            if g not in year_data.geometry.tolist():
-                # weird but apparently necessary
-                continue
-
-            capex_df.loc[g, year] = year_data.loc[
-                year_data.geometry == g, "CAPEX"
-            ].values[0]
-
-    capex_df = capex_df.loc[:, default_year:]
-
-    # fill up missing values assuming cost reduction factors similar to existing values
-    for sooner, later in zip(capex_df.columns[::-1][1:], capex_df.columns[::-1]):
-        missing_mask = capex_df[sooner].isna()
-        cr_factor = (
-            capex_df.loc[~missing_mask, later] / capex_df.loc[~missing_mask, sooner]
+        plant = out["plant_capex"] * to_eur / net
+        well = out["well_capex"] * to_eur / net
+        fom = out["fom"] * to_eur / net
+        lcoe = ((plant + well) * crf + fom) * 1e3 / (8760 * config["availability"])
+        feasible = (
+            (t_res >= config["min_temperature"])
+            & (out["thermal_mw"] > 0)
+            & np.isfinite(lcoe)
         )
-
-        capex_df.loc[missing_mask, sooner] = (
-            capex_df.loc[missing_mask, later] / cr_factor.mean()
+        frame = pd.DataFrame(
+            {
+                "bus": columns.bus.values,
+                "depth": depth,
+                "temperature": t_res,
+                "plant_capex": plant,
+                "well_capex": well,
+                "fom": fom,
+                "lcoe": np.where(feasible, lcoe, np.inf),
+                "efficiency": out["gross_mw"] * net / out["thermal_mw"],
+                "p_nom_max": out["mw_per_km2"] * net * area,
+            }
         )
-
-    # harmonice capacity and CAPEX
-    p_nom_max = prepared_data[2050].groupby("geometry")["PowerSust"].mean()
-    p_nom_max = p_nom_max.loc[p_nom_max > 0]
-
-    capex_df = capex_df.loc[p_nom_max.index]
-
-    data = (
-        pd.concat((capex_df[default_year], p_nom_max), axis=1)
-        .reset_index()
-        .rename(columns={2020: "CAPEX"})
-    )
-    return gpd.GeoDataFrame(data, geometry=data.geometry)
+        if best is None:
+            best = frame
+        else:
+            cheaper = frame.lcoe < best.lcoe
+            best = best.where(~cheaper, frame)
+    best = best.loc[np.isfinite(best.lcoe)]
+    return best.infer_objects()
 
 
 def get_capacity_factors(
-    network_regions_file: str, air_temperatures_file: str, snapshots: pd.DatetimeIndex
+    air_temperature: xr.DataArray, snapshots: pd.DatetimeIndex
 ) -> pd.DataFrame:
     """
-    Performance of EGS is higher for lower temperatures, due to more efficient
-    air cooling Data from Ricks et al.: The Role of Flexible Geothermal Power
-    in Decarbonized Elec Systems.
+    Capacity factors from the deviation of the ambient temperature from its mean,
+    after Ricks et al. (Supplementary Figure 20, https://zenodo.org/records/7093330),
+    linearly extrapolated beyond the figure's range.
     """
-
-    # these values are taken from the paper's
-    # Supplementary Figure 20 from https://zenodo.org/records/7093330
-    # and relate deviations of the ambient temperature from the year-average
-    # ambient temperature to EGS capacity factors.
-    delta_T = [-15, -10, -5, 0, 5, 10, 15, 20]
+    delta_t = [-15, -10, -5, 0, 5, 10, 15, 20]
     cf = [1.17, 1.13, 1.07, 1, 0.925, 0.84, 0.75, 0.65]
 
     x = np.linspace(-15, 20, 200)
-    y = np.interp(x, delta_T, cf)
+    y = np.interp(x, delta_t, cf)
 
     upper_x = np.linspace(20, 25, 50)
     m_upper = (y[-1] - y[-2]) / (x[-1] - x[-2])
@@ -184,22 +135,13 @@ def get_capacity_factors(
     x = np.hstack((lower_x, x, upper_x))
     y = np.hstack((lower_y, y, upper_y))
 
-    network_regions = gpd.read_file(network_regions_file).set_crs(epsg=4326)
-    index = network_regions["name"]
-
-    air_temp = xr.open_dataset(air_temperatures_file)
-
-    capacity_factors = pd.DataFrame(index=snapshots)
-
-    # bespoke computation of capacity factors for each bus.
-    # Considering the respective temperatures, we compute
-    # the deviation from the average temperature and relate it
-    # to capacity factors based on the data from above.
-    for bus in index:
-        temp = air_temp.sel(name=bus).to_dataframe()["temperature"]
-        capacity_factors[bus] = np.interp((temp - temp.mean()).values, x, y)
-
-    return capacity_factors
+    temp = air_temperature.to_pandas()
+    capacity_factors = pd.DataFrame(
+        np.interp((temp - temp.mean()).values, x, y),
+        index=temp.index,
+        columns=temp.columns,
+    )
+    return capacity_factors.reindex(snapshots, method="nearest")
 
 
 if __name__ == "__main__":
@@ -211,50 +153,45 @@ if __name__ == "__main__":
     configure_logging(snakemake)
     set_scenario_config(snakemake)
 
-    egs_config = snakemake.params["sector"]["enhanced_geothermal"]
-    costs_config = snakemake.params["costs"]
+    config = snakemake.params.enhanced_geothermal
+    discount_rate = snakemake.params.costs["fill_values"]["discount rate"]
 
-    egs_data = prepare_egs_data(snakemake.input.egs_cost)
-    egs_data = prepare_capex(egs_data)
+    columns = xr.open_dataset(snakemake.input.columns)
+    air_temperature = xr.open_dataset(snakemake.input.air_temperature)["temperature"]
+    mean_air = air_temperature.mean("time").to_pandas()
 
-    egs_regions = egs_data.geometry
-
-    network_regions = (
-        gpd.read_file(snakemake.input.regions)
-        .set_index("name", drop=True)
-        .set_crs(epsg=4326)
+    cells = column_costs(columns, mean_air, config, discount_rate)
+    steps = bin_supply_curve(
+        cells,
+        cost_column="lcoe",
+        capacity_column="p_nom_max",
+        bins=config["lcoe_bins"],
+        extra=(
+            "plant_capex",
+            "well_capex",
+            "fom",
+            "efficiency",
+            "depth",
+            "temperature",
+        ),
     )
-
-    overlap_matrix = pd.DataFrame(
-        index=network_regions.index,
-        columns=egs_data.index,
+    regions = gpd.read_file(snakemake.input.regions).name
+    missing = sorted(set(regions) - set(steps.bus))
+    if missing:
+        logger.info(
+            f"No EGS potential below {config['lcoe_bins'][-1]} EUR/MWh in {missing}."
+        )
+    summary = steps.groupby(steps.bus.str[:2]).agg(
+        gw=("p_nom_max", lambda s: s.sum() / 1e3), min_lcoe=("lcoe", "min")
     )
-
-    for name, polygon in network_regions.geometry.items():
-        overlap_matrix.loc[name] = (
-            egs_regions.intersection(polygon).area
-        ) / egs_regions.area
-
-    overlap_matrix.to_csv(snakemake.output["egs_overlap"])
-
-    # the share of heat that is replenished from the earth's core.
-    # we are not constraining ourselves to the sustainable share, but
-    # inversely apply it to our underlying data, which refers to the
-    # sustainable heat. Source: Relative magnitude of sustainable heat vs
-    # nonsustainable heat in the paper "From hot rock to useful energy..."
-    sustainability_factor = egs_config["sustainability_factor"]
-    egs_data["p_nom_max"] = egs_data["PowerSust"] / sustainability_factor
-
-    egs_data[["p_nom_max", "CAPEX"]].to_csv(snakemake.output["egs_potentials"])
+    logger.info(
+        f"EGS potential per country (GW, cheapest step EUR/MWh):\n{summary.round(1)}"
+    )
+    steps.to_csv(snakemake.output.egs_potentials, index=False)
 
     snapshots = get_snapshots(
         snakemake.params.snapshots, snakemake.params.drop_leap_day
     )
-
-    capacity_factors = get_capacity_factors(
-        snakemake.input["regions"],
-        snakemake.input["air_temperature"],
-        snapshots,
+    get_capacity_factors(air_temperature, snapshots).to_csv(
+        snakemake.output.egs_capacity_factors
     )
-
-    capacity_factors.to_csv(snakemake.output["egs_capacity_factors"])

@@ -110,15 +110,6 @@ New data should generally not be added to the data, but externally retrieved in 
 - **License:** unknown
 - **Description:** Contains district heating shares for European countries.
 
-`data/egs_costs.json`
-
-- **Source:** Arman Aghahosseini, Christian Breyer, From hot rock to useful
-  energy: A global estimate of enhanced geothermal systems potential, Applied
-  Energy, Volume 279, 2020, 115769.
-- **Link:** https://doi.org/10.1016/j.apenergy.2020.115769
-- **License:** unknown
-- **Description:** Contains rastered potentials and capital costs for enhanced geothermal electricity generation in Europe.
-
 `data/eia_hydro_annual_capacity.csv`
 
 - **Source:** Energy Information Agency (EIA)

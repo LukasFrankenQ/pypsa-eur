@@ -3243,6 +3243,50 @@ def build_heat_demand(
     return heat_demand
 
 
+def add_geothermal_heat_steps(
+    n: pypsa.Network,
+    steps_file: str,
+    nodes: pd.Index,
+    heat_carrier: str,
+    overdim_factor: float,
+    discount_rate: float,
+) -> None:
+    """
+    Add geology-based geothermal heat sources: one generator per region and
+    supply-curve step, priced by the doublet investment (`capex`, EUR/kW_th),
+    fixed O&M (`fom`, EUR/kW_th/yr) and variable O&M (`vom`, EUR/MWh_th) of that
+    step.
+
+    The first step of a region keeps the name of the single generator a region
+    gets otherwise (`<node> <carrier> Generator`); later steps carry ` <i>`.
+    """
+    steps = pd.read_csv(steps_file)
+    steps = steps.loc[steps.bus.isin(nodes)]
+    if steps.empty:
+        logger.info("No geothermal heat potential in the selected regions.")
+        return
+    steps["rank"] = steps.groupby("bus").cumcount()
+    names = (
+        steps.bus
+        + f" {heat_carrier} Generator"
+        + steps["rank"].map(lambda i: "" if i == 0 else f" {i}")
+    )
+    nyears = n.snapshot_weightings.generators.sum() / 8760.0
+    annuity = steps.lifetime.map(lambda lt: pypsa.costs.annuity(discount_rate, lt))
+    capital_cost = (annuity * steps.capex + steps.fom) * 1e3 * overdim_factor * nyears
+    n.add(
+        "Generator",
+        pd.Index(names),
+        bus=(steps.bus + f" {heat_carrier}").values,
+        carrier=heat_carrier,
+        p_nom_extendable=True,
+        p_nom_max=steps.p_nom_max.values,
+        capital_cost=capital_cost.values,
+        marginal_cost=steps.vom.values,
+        lifetime=steps.lifetime.values,
+    )
+
+
 def add_heat(
     n: pypsa.Network,
     costs: pd.DataFrame,
@@ -3268,6 +3312,8 @@ def add_heat(
     spatial: object,
     options: dict,
     current_horizon: int,
+    geothermal_steps_file: str | None = None,
+    discount_rate: float | None = None,
 ) -> None:
     """
     Add heat sector to the network including heat demand, heat pumps, storage, and conversion technologies.
@@ -3310,6 +3356,10 @@ def add_heat(
         Dictionary mapping heat source names to their data file paths
     heat_dsm_profile_file : str
         Path to CSV file containing demand-side management profiles for heat
+    geothermal_steps_file : str, optional
+        Path to the CSV of geology-based geothermal heat supply-curve steps per
+        region (`build_geothermal_heat_potential`); replaces the single
+        geothermal heat source generator per region.
     pop_weighted_energy_totals : pd.DataFrame
         Population-weighted energy totals by region
     heating_efficiencies : pd.DataFrame
@@ -3789,18 +3839,28 @@ def add_heat(
                     capital_cost = 0.0
                     lifetime = np.inf
 
-                n.add(
-                    "Generator",
-                    nodes,
-                    suffix=f" {heat_carrier} Generator",
-                    bus=nodes + f" {heat_carrier}",
-                    carrier=heat_carrier,
-                    p_nom_extendable=True,
-                    capital_cost=capital_cost,
-                    lifetime=lifetime,
-                    p_nom_max=p_max_source.max(),
-                    p_max_pu=p_max_source / p_max_source.max(),
-                )
+                if heat_source == "geothermal" and geothermal_steps_file:
+                    add_geothermal_heat_steps(
+                        n,
+                        geothermal_steps_file,
+                        nodes,
+                        heat_carrier,
+                        overdim_factor=overdim_factor,
+                        discount_rate=discount_rate,
+                    )
+                else:
+                    n.add(
+                        "Generator",
+                        nodes,
+                        suffix=f" {heat_carrier} Generator",
+                        bus=nodes + f" {heat_carrier}",
+                        carrier=heat_carrier,
+                        p_nom_extendable=True,
+                        capital_cost=capital_cost,
+                        lifetime=lifetime,
+                        p_nom_max=p_max_source.max(),
+                        p_max_pu=p_max_source / p_max_source.max(),
+                    )
                 # add heat pump converting source heat + electricity to urban central heat
                 n.add(
                     "Link",
@@ -7218,130 +7278,76 @@ def lossy_bidirectional_links(
 
 def add_enhanced_geothermal(
     n,
-    costs,
-    costs_config,
     egs_potentials,
-    egs_overlap,
     egs_config,
+    costs,
+    discount_rate,
     spatial,
     egs_capacity_factors=None,
 ):
     """
-    Add Enhanced Geothermal System (EGS) potential to the network model.
+    Add enhanced geothermal systems (EGS) with geology-dependent supply curves.
 
     Parameters
     ----------
     n : pypsa.Network
         The PyPSA network container object.
     egs_potentials : str
-        Path to CSV file containing EGS potential data.
-    egs_overlap : str
-        Path to CSV file defining overlap between gridded geothermal potential
-        estimation and bus regions.
-    costs : pd.DataFrame
-        Technology cost assumptions including fields for lifetime, FOM, investment,
-        and efficiency parameters.
+        Path to the CSV of supply-curve steps per region (`build_egs_potentials`):
+        net electric `p_nom_max` (MW), `well_capex` and `plant_capex` (EUR/kW_el),
+        `fom` (EUR/kW_el/yr) and the organic Rankine cycle `efficiency`.
     egs_config : dict
-        Configuration for enhanced geothermal systems with keys:
-        - var_cf : bool
-            Whether to use time-varying capacity factors
-        - flexible : bool
-            Whether to add flexible operation using geothermal reservoir
-        - max_hours : float
-            Maximum hours of storage if flexible
-        - max_boost : float
-            Maximum power boost factor if flexible
-    costs_config : dict
-        General cost configuration containing:
-        - fill_values : dict
-            With key 'discount rate' for financial calculations
+        `sector.enhanced_geothermal`: `var_cf`, `flexible`, `max_hours`,
+        `max_boost`, `availability` and `lifetime`.
+    costs : pd.DataFrame
+        Technology cost assumptions; the `geothermal` row gives the district heat
+        surcharge and the district heat-input efficiency.
+    discount_rate : float
+        Discount rate for the annuities.
     spatial : SimpleNamespace
-        Configuration options containing at least:
-            - geothermal_heat.df: DataFrame with geothermal_heat network nodes
+        Holds `geothermal_heat.nodes`, the free heat source the wells draw from.
     egs_capacity_factors : str, optional
-        Path to CSV file with time-varying capacity factors.
-        Required if egs_config['var_cf'] is True.
-
-    Returns
-    -------
-    None
-        Modifies the network object in-place by adding EGS components.
+        Path to the CSV of hourly capacity factors per region (`var_cf`).
 
     Notes
     -----
-    Implements EGS with 2020 CAPEX from Aghahosseini et al 2021.
-    The function adds various components to the network:
-    - Geothermal heat generators and buses
-    - Organic Rankine Cycle links for electricity generation
-    - District heating links if urban central heat exists
-    - Optional storage units for flexible operation
+    Per region, wells (one link per supply-curve step, heat from the source node to
+    `<bus> geothermal heat surface`) carry the wellfield investment, an organic
+    Rankine cycle link converts the surface heat to electricity, and, where the
+    region has district heating, a link delivers the surface heat to it at the
+    district-heat surcharge on the plant investment (combined heat and power). The
+    links are sized in heat: per kW of heat the wellfield costs its per-kW_el
+    investment times the cycle efficiency. Fixed O&M is split between wells and
+    plant in proportion to their investment. With `flexible`, a reservoir
+    `StorageUnit` on the surface bus allows boosting.
     """
-    if len(spatial.geothermal_heat.nodes) > 1:
-        logger.warning(
-            "'add_enhanced_geothermal' not implemented for multiple geothermal nodes."
-        )
-    logger.info(
-        "[EGS] implemented with 2020 CAPEX from Aghahosseini et al 2021: 'From hot rock to...'."
-    )
-    logger.info(
-        "[EGS] Recommended usage scales CAPEX to future cost expectations using config 'adjustments'."
-    )
-    logger.info("[EGS] During this the relevant carriers are:")
-    logger.info("[EGS] drilling part -> 'geothermal heat'")
-    logger.info(
-        "[EGS] electricity generation part -> 'geothermal organic rankine cycle'"
-    )
-    logger.info("[EGS] district heat distribution part -> 'geothermal district heat'")
-
-    # matrix defining the overlap between gridded geothermal potential estimation, and bus regions
-    overlap = pd.read_csv(egs_overlap, index_col=0)
-    overlap.columns = overlap.columns.astype(int)
-    egs_potentials = pd.read_csv(egs_potentials, index_col=0)
+    steps = pd.read_csv(egs_potentials)
+    if steps.empty:
+        logger.warning("[EGS] no EGS potential in any region; nothing added.")
+        return
 
     Nyears = n.snapshot_weightings.generators.sum() / 8760
-    dr = costs_config["fill_values"]["discount rate"]
-    lt = costs.at["geothermal", "lifetime"]
-    FOM = costs.at["geothermal", "FOM"] / 100
-
-    egs_annuity = pypsa.costs.annuity(dr, lt)
-
-    # under egs optimism, the expected cost reductions also cover costs for ORC
-    # hence, the ORC costs are no longer taken from technology-data
-    orc_capex = costs.at["organic rankine cycle", "investment"]
-
-    # cost for ORC is subtracted, as it is already included in the geothermal cost.
-    # The orc cost are attributed to a separate link representing the ORC.
-    # also capital_cost conversion Euro/kW -> Euro/MW
-
-    egs_potentials["capital_cost"] = (
-        (egs_annuity + FOM / (1.0 + FOM))
-        * (egs_potentials["CAPEX"] * 1e3 - orc_capex)
-        * Nyears
-    )
-
-    assert (egs_potentials["capital_cost"] > 0).all(), (
-        "Error in EGS cost, negative values found."
-    )
-
-    orc_annuity = pypsa.costs.annuity(dr, costs.at["organic rankine cycle", "lifetime"])
-    orc_capital_cost = (orc_annuity + FOM / (1 + FOM)) * orc_capex * Nyears
-
-    efficiency_orc = costs.at["organic rankine cycle", "electricity-input"]
+    lifetime = egs_config["lifetime"]
+    crf = pypsa.costs.annuity(discount_rate, lifetime)
     efficiency_dh = costs.at["geothermal", "district heat-input"]
+    dh_surcharge = costs.at["geothermal", "district heat surcharge"] / 100.0
 
-    # p_nom_max conversion GW -> MW
-    egs_potentials["p_nom_max"] = egs_potentials["p_nom_max"] * 1000.0
+    capex = steps.well_capex + steps.plant_capex
+    fom_share = steps.fom / capex
+    # EUR/kW_el -> EUR/MW_th: times efficiency and 1e3
+    steps["well_cost"] = (
+        (crf + fom_share) * steps.well_capex * steps.efficiency * 1e3 * Nyears
+    )
+    steps["plant_cost"] = (crf + fom_share) * steps.plant_capex * 1e3 * Nyears
+    steps["p_nom_max_th"] = steps.p_nom_max / steps.efficiency
 
-    # not using add_carrier_buses, as we are not interested in a Store
     n.add("Carrier", "geothermal heat")
-
     n.add(
         "Bus",
         spatial.geothermal_heat.nodes,
         carrier="geothermal heat",
         unit="MWh_th",
     )
-
     n.add(
         "Generator",
         spatial.geothermal_heat.nodes,
@@ -7352,118 +7358,94 @@ def add_enhanced_geothermal(
     )
 
     if egs_config["var_cf"]:
-        efficiency = pd.read_csv(egs_capacity_factors, parse_dates=True, index_col=0)
-        logger.info("Adding Enhanced Geothermal with time-varying capacity factors.")
-    else:
-        efficiency = 1.0
+        capacity_factors = pd.read_csv(
+            egs_capacity_factors, parse_dates=True, index_col=0
+        ).reindex(n.snapshots)
+        logger.info("[EGS] time-varying capacity factors from ambient temperature.")
 
-    # if urban central heat exists, adds geothermal as CHP
     as_chp = "urban central heat" in n.loads.carrier.unique()
+    logger.info(
+        "[EGS] adding geology-based EGS "
+        + ("as combined heat and power." if as_chp else "for electricity only.")
+    )
 
-    if as_chp:
-        logger.info("Adding EGS as Combined Heat and Power.")
-
-    else:
-        logger.info("Adding EGS for Electricity Only.")
-
-    for bus, bus_overlap in overlap.iterrows():
-        if not bus_overlap.sum():
-            continue
-
-        overlap = bus_overlap.loc[bus_overlap > 0.0]
-        bus_egs = egs_potentials.loc[overlap.index]
-
-        if not len(bus_egs):
-            continue
-
-        bus_egs["p_nom_max"] = bus_egs["p_nom_max"].multiply(bus_overlap)
-        bus_egs = bus_egs.loc[bus_egs.p_nom_max > 0.0]
-
-        appendix = " " + pd.Index(np.arange(len(bus_egs)).astype(str))
-
-        # add surface bus
+    steps = steps.loc[steps.bus.isin(n.buses.index)]
+    for bus, bus_steps in steps.groupby("bus"):
+        surface = f"{bus} geothermal heat surface"
         n.add(
             "Bus",
-            pd.Index([f"{bus} geothermal heat surface"]),
+            surface,
             location=bus,
             unit="MWh_th",
             carrier="geothermal heat",
         )
 
-        bus_egs.index = np.arange(len(bus_egs)).astype(str)
-        well_name = f"{bus} enhanced geothermal" + appendix
-
+        well_name = pd.Index(
+            [f"{bus} enhanced geothermal {i}" for i in range(len(bus_steps))]
+        )
+        bus_steps = bus_steps.set_axis(well_name)
         if egs_config["var_cf"]:
-            bus_eta = pd.concat(
-                (efficiency[bus].rename(idx) for idx in well_name),
-                axis=1,
+            efficiency = pd.concat(
+                {name: capacity_factors[bus] for name in well_name}, axis=1
             ).loc[n.snapshots]
         else:
-            bus_eta = efficiency
+            efficiency = 1.0
 
-        p_nom_max = bus_egs["p_nom_max"]
-        capital_cost = bus_egs["capital_cost"]
-        bus1 = pd.Series(f"{bus} geothermal heat surface", well_name)
-
-        # adding geothermal wells as multiple generators to represent supply curve
         n.add(
             "Link",
             well_name,
-            bus0=spatial.geothermal_heat.nodes,
-            bus1=bus1,
+            bus0=spatial.geothermal_heat.nodes[0],
+            bus1=surface,
             carrier="geothermal heat",
             p_nom_extendable=True,
-            p_nom_max=p_nom_max.set_axis(well_name) / efficiency_orc,
-            capital_cost=capital_cost.set_axis(well_name) * efficiency_orc,
-            efficiency=bus_eta,
-            lifetime=costs.at["geothermal", "lifetime"],
+            p_nom_max=bus_steps.p_nom_max_th,
+            p_max_pu=egs_config["availability"],
+            capital_cost=bus_steps.well_cost,
+            efficiency=efficiency,
+            lifetime=lifetime,
         )
 
-        # adding Organic Rankine Cycle as a single link
+        weight = bus_steps.p_nom_max
+        efficiency_orc = (bus_steps.efficiency * weight).sum() / weight.sum()
+        plant_cost = (bus_steps.plant_cost * weight).sum() / weight.sum()
+
         n.add(
             "Link",
             bus + " geothermal organic rankine cycle",
-            bus0=f"{bus} geothermal heat surface",
+            bus0=surface,
             bus1=bus,
             p_nom_extendable=True,
             carrier="geothermal organic rankine cycle",
-            capital_cost=orc_capital_cost * efficiency_orc,
+            capital_cost=plant_cost * efficiency_orc,
             efficiency=efficiency_orc,
-            lifetime=costs.at["organic rankine cycle", "lifetime"],
+            lifetime=lifetime,
         )
 
         if as_chp and bus + " urban central heat" in n.buses.index:
             n.add(
                 "Link",
                 bus + " geothermal heat district heat",
-                bus0=f"{bus} geothermal heat surface",
+                bus0=surface,
                 bus1=bus + " urban central heat",
                 carrier="geothermal district heat",
-                capital_cost=orc_capital_cost
-                * efficiency_orc
-                * costs.at["geothermal", "district heat surcharge"]
-                / 100.0,
+                capital_cost=plant_cost * efficiency_orc * dh_surcharge,
                 efficiency=efficiency_dh,
                 p_nom_extendable=True,
-                lifetime=costs.at["geothermal", "lifetime"],
+                lifetime=lifetime,
             )
 
         if egs_config["flexible"]:
             # this StorageUnit represents flexible operation using the geothermal reservoir.
             # Hence, it is counter-intuitive to install it at the surface bus,
             # this is however the more lean and computationally efficient solution.
-
-            max_hours = egs_config["max_hours"]
-            boost = egs_config["max_boost"]
-
             n.add(
                 "StorageUnit",
                 bus + " geothermal reservoir",
-                bus=f"{bus} geothermal heat surface",
+                bus=surface,
                 carrier="geothermal heat",
                 p_nom_extendable=True,
-                p_min_pu=-boost,
-                max_hours=max_hours,
+                p_min_pu=-egs_config["max_boost"],
+                max_hours=egs_config["max_hours"],
                 cyclic_state_of_charge=True,
             )
 
@@ -7714,6 +7696,8 @@ def main(
                 if source in inputs.keys()  # noqa: SIM118
             },
             heat_dsm_profile_file=inputs.heat_dsm_profile,
+            geothermal_steps_file=inputs.get("geothermal_steps"),
+            discount_rate=params.costs["fill_values"]["discount rate"],
             pop_weighted_energy_totals=pop_weighted_energy_totals,
             heating_efficiencies=heating_efficiencies,
             pop_layout=pop_layout,
@@ -7866,11 +7850,10 @@ def main(
         logger.info("Adding Enhanced Geothermal Systems (EGS).")
         add_enhanced_geothermal(
             n,
-            costs=costs,
-            costs_config=params.costs,
             egs_potentials=inputs.egs_potentials,
-            egs_overlap=inputs.egs_overlap,
             egs_config=options["enhanced_geothermal"],
+            costs=costs,
+            discount_rate=params.costs["fill_values"]["discount rate"],
             spatial=spatial,
             egs_capacity_factors=inputs.egs_capacity_factors,
         )

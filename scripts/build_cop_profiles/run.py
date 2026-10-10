@@ -124,6 +124,8 @@ if __name__ == "__main__":
                     "constant_temperature_celsius"
                 ]
                 is not False
+                # geology-based geothermal has a per-region temperature file
+                and f"temp_{heat_source}" not in snakemake.input.keys()
             ):
                 source_inlet_temperature_celsius = (
                     snakemake.params.limited_heat_sources[heat_source][

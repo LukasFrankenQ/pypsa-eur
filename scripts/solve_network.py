@@ -1123,27 +1123,34 @@ def add_pipe_retrofit_constraint(n: pypsa.Network, config: dict) -> None:
 
 def add_flexible_egs_constraint(n: pypsa.Network) -> None:
     """
-    Limit each geothermal reservoir to the capacity of the wells at its surface bus.
+    Upper bounds the charging capacity of each region's geothermal reservoir by
+    the capacity of that region's wells.
     """
-    wells = n.links.query("carrier == 'geothermal heat'")
-    new_wells = wells.query("p_nom_extendable")
-    reservoirs = n.storage_units.query(
-        "carrier == 'geothermal heat' and p_nom_extendable"
-    )
-    reservoir_p_nom = n.model["StorageUnit-p_nom"].loc[reservoirs.index]
-    well_p_nom = n.model["Link-p_nom"].loc[new_wells.index]
-    lhs = reservoir_p_nom.groupby(reservoirs.bus).sum()
-    rhs = well_p_nom.groupby(new_wells.bus1.rename("bus")).sum()
-    existing = (
-        wells.query("not p_nom_extendable")
-        .groupby("bus1")
-        .p_nom.sum()
-        .reindex(reservoirs.bus.unique(), fill_value=0.0)
-        .rename_axis("bus")
-    )
+    wells = n.links.loc[
+        (n.links.carrier == "geothermal heat") & n.links.p_nom_extendable
+    ]
+    reservoirs = n.storage_units.loc[
+        (n.storage_units.carrier == "geothermal heat")
+        & n.storage_units.p_nom_extendable
+    ]
+    if wells.empty or reservoirs.empty:
+        return
 
+    well_capacity = (
+        n.model["Link-p_nom"]
+        .loc[wells.index]
+        .groupby(wells.bus1.rename("bus"))
+        .sum()
+    )
+    reservoir_capacity = (
+        n.model["StorageUnit-p_nom"]
+        .loc[reservoirs.index]
+        .groupby(reservoirs.bus.rename("bus"))
+        .sum()
+    )
+    buses = reservoir_capacity.indexes["bus"].intersection(well_capacity.indexes["bus"])
     n.model.add_constraints(
-        lhs - rhs <= existing.to_xarray(),
+        reservoir_capacity.loc[buses] <= well_capacity.loc[buses],
         name="upper_bound_charging_capacity_of_geothermal_reservoir",
     )
 
