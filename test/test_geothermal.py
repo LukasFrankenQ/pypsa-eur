@@ -415,3 +415,48 @@ def test_brownfield_subtracts_earlier_geothermal_builds():
         n.generators.at["N0 urban central geothermal heat Generator-2040", "p_nom_max"]
         == 0.0
     )
+
+
+def test_direct_utilisation_profile_keeps_the_forward_temperature_order():
+    from scripts.build_direct_heat_source_utilisation_profiles import get_profile
+
+    forward = xr.DataArray(
+        [[70.0, 90.0], [70.0, 60.0], [80.0, 90.0]],
+        dims=("time", "name"),
+        coords={
+            "time": pd.date_range("2013-01-01", periods=3, freq="h"),
+            "name": ["N0", "N1"],
+        },
+    )
+    per_region = xr.DataArray(
+        [75.0, 85.0], dims=("name",), coords={"name": ["N0", "N1"]}
+    )
+
+    profile = get_profile(per_region, forward)
+
+    assert profile.dims == ("time", "name")
+    assert profile.sel(name="N1").values.tolist() == [0.0, 1.0, 0.0]
+    assert get_profile(65.0, forward).dims == ("time", "name")
+
+
+def test_source_temperature_falls_back_to_the_constant_without_a_file(monkeypatch):
+    from snakemake.iocontainers import Namedlist
+
+    import scripts.build_direct_heat_source_utilisation_profiles as script
+
+    monkeypatch.setattr(
+        script,
+        "snakemake",
+        SimpleNamespace(
+            input=Namedlist(fromdict={"temp_geothermal": []}),
+            params=SimpleNamespace(
+                limited_heat_sources={
+                    "geothermal": {"constant_temperature_celsius": 65}
+                },
+                heat_sources={"geothermal": {}},
+            ),
+        ),
+        raising=False,
+    )
+
+    assert script.get_source_temperature("geothermal") == 65
