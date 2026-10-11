@@ -281,6 +281,58 @@ def test_caching_switch_no_cache_lines_without_flag() -> None:
     assert not any("cach" in line.lower() for line in relevant_lines)
 
 
+CACHED_MARKER = "results/custom_rules_cached_marker.txt"
+
+
+def test_bare_cache_reaches_a_cluster_job(tmp_path: Path, cache_dir: Path) -> None:
+    """
+    A cluster job stores and fetches under a bare --cache.
+
+    Snakemake drops an empty --cache rule list from a spawned job's command
+    line, so without the Snakefile naming the eligible rules a slurm job
+    runs uncached. A cluster-generic executor submitting with `bash` runs the
+    same spawned command locally.
+    """
+    configfile = tmp_path / "config.yaml"
+    configfile.write_text(
+        "tutorial: true\n"
+        "run:\n  name: test-cache-cluster\n"
+        "custom_rules:\n- test/fixtures/custom_rules/cached.smk\n"
+    )
+    env = os.environ.copy()
+    env["SNAKEMAKE_OUTPUT_CACHE"] = str(cache_dir)
+    cmd = [
+        "snakemake",
+        "--cache",
+        "--executor",
+        "cluster-generic",
+        "--cluster-generic-submit-cmd",
+        "bash",
+        "--jobs",
+        "1",
+        "--configfile",
+        str(configfile),
+        "--",
+        CACHED_MARKER,
+    ]
+    marker = ROOT / CACHED_MARKER
+    try:
+        for _ in range(2):
+            marker.unlink(missing_ok=True)
+            result = subprocess.run(
+                cmd, cwd=ROOT, env=env, capture_output=True, text=True, check=False
+            )
+            output = result.stdout + result.stderr
+            assert result.returncode == 0, output
+            assert "eligible for caching between workflows" not in output
+        assert len(list(cache_dir.iterdir())) == 1
+        # the second run fetched the stored entry instead of running the job
+        assert "from cache" in output
+        assert marker.read_text() == "cached\n"
+    finally:
+        marker.unlink(missing_ok=True)
+
+
 def test_cache_keys_harness_finds_base_network_chain(cache_dir: Path) -> None:
     """
     Sanity-check the harness itself.

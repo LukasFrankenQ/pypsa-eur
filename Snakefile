@@ -119,6 +119,21 @@ for _rule_file in config["custom_rules"]:
     include: _rule_file
 
 
+# A bare --cache (every eligible rule) reaches a cluster job as no --cache at
+# all: Snakemake forwards workflow_settings.cache only when the list is
+# non-empty, so jobs on an executor like slurm never fetch or store. Naming
+# the eligible rules, now that every rule file is included, forwards them.
+# A job the local executor spawns into a subprocess (a run: directive) is
+# stored by its parent; storing it there too would replace the cache entry
+# with a symlink to itself, so such a job runs uncached as before.
+if workflow.subprocess_exec:
+    workflow.workflow_settings.cache = None
+elif workflow.workflow_settings.cache == []:
+    workflow.workflow_settings.cache = [
+        r.name for r in workflow.rules if r.cache and r.cache.output
+    ]
+
+
 # Define output categories based on foresight mode
 # This follows the same pattern as postprocess.smk for consistency
 
