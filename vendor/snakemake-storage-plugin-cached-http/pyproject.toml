@@ -1,0 +1,77 @@
+# SPDX-FileCopyrightText: Contributors to PyPSA-Eur <https://github.com/pypsa/pypsa-eur>
+#
+# SPDX-License-Identifier: MIT
+
+[project]
+name = "snakemake-storage-plugin-cached-http"
+version = "0.3.post1"
+description = "Snakemake storage plugin for downloading files via HTTP with caching and rate limiting"
+authors = [
+    { name = "PyPSA-Eur Authors", email = "jonas.hoersch@openenergytransition.org" },
+]
+readme = "README.md"
+license = "MIT"
+keywords = ["snakemake", "plugin", "storage", "http", "cache"]
+requires-python = ">=3.11"
+dependencies = [
+    "httpx ~= 0.27",
+    "platformdirs ~= 4.0",
+    "reretry ~= 0.11",
+    "snakemake-interface-common ~= 1.14",
+    "snakemake-interface-storage-plugins >=4.2,<5.0",
+    "snakemake-storage-plugin-http ~= 0.3",
+    "tqdm-loggable ~= 0.2",
+    "typing-extensions ~= 4.15",
+    "zstandard ~=0.25.0",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+[project.urls]
+homepage = "https://github.com/pypsa/pypsa-eur"
+repository = "https://github.com/pypsa/pypsa-eur"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project.entry-points."snakemake_storage_plugins"]
+cached-http = "snakemake_storage_plugin_cached_http:StorageProvider"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "asyncio: mark test as an asyncio test",
+]
+
+[tool.pytest_asyncio]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+
+[dependency-groups]
+dev = [
+    "humanfriendly>=10.0",
+    "pytest>=8.4.2",
+    "pytest-asyncio>=1.2.0",
+    "snakemake>=9.13.4",
+]
+
+[tool.basedpyright]
+reportImplicitStringConcatenation = false
+ignore = ["tests", "src/snakemake_storage_plugin_cached_http/monkeypatch.py"]
+reportUnusedCallResult = false
+reportAny = false
+reportMissingTypeStubs = false

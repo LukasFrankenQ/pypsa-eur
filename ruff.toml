@@ -3,6 +3,8 @@
 # SPDX-License-Identifier: CC0-1.0
 
 extend-include = ['*.ipynb']
+# Vendored upstream code keeps its own style (vendor/<package>/README.md).
+extend-exclude = ['vendor']
 
 [lint]
 select = [

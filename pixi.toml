@@ -112,7 +112,16 @@ tsam = ">=2.3.1"
 xarray = ">=2026.1"
 xlrd = ">=2.0.2"
 yaml = ">=0.2.5"
-snakemake-storage-plugin-cached-http = ">=0.2.1"
+# The cached-http plugin is vendored (vendor/snakemake-storage-plugin-cached-http,
+# a path dependency below); these are its runtime dependencies, kept on conda.
+httpx = ">=0.27,<1"
+platformdirs = ">=4"
+reretry = ">=0.11"
+snakemake-interface-common = ">=1.14,<2"
+snakemake-interface-storage-plugins = ">=4.2,<5"
+tqdm-loggable = ">=0.2"
+typing_extensions = ">=4.15"
+zstandard = ">=0.25"
 pandera = ">=0.28.1"
 natsort = ">=8.4.0"
 snakemake-logger-plugin-pypsa = ">=0.1.0"
@@ -126,6 +135,9 @@ snakemake-logger-plugin-snkmt = "==0.1.6" # For better pypsa-app integration
 # and leaves the cache entry a symlink to itself.
 [pypi-dependencies]
 snakemake = { git = "https://github.com/lkstrp/snakemake.git", rev = "3230abfdb2ffe14d7a0880254f7b29c233286d2f" }
+# The cached-http storage plugin, vendored with a cache-before-metadata fix for
+# the immutable hosts (vendor/snakemake-storage-plugin-cached-http/README.md).
+snakemake-storage-plugin-cached-http = { path = "vendor/snakemake-storage-plugin-cached-http" }
 
 [target.unix.dependencies]
 snakemake-executor-plugin-slurm = ">=1.9.2"
