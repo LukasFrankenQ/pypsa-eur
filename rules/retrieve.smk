@@ -250,6 +250,31 @@ if (DESNZ_GHG_EMISSIONS_DATASET := dataset_version("desnz_ghg_emissions"))[
             copy2(input["xlsx"], output["xlsx"])
 
 
+if (EEA_GHG_INVENTORY := dataset_version("eea_ghg_inventory"))["source"] in [
+    "archive",
+    "primary",
+]:
+
+    rule retrieve_eea_ghg_inventory:
+        cache: "omit-storage-content"
+        input:
+            zip=storage(EEA_GHG_INVENTORY["url"]),
+        output:
+            csv=f"{EEA_GHG_INVENTORY['folder']}/UNFCCC_{EEA_GHG_INVENTORY['version']}.csv",
+        retries: 2
+        message:
+            "Retrieving the latest EEA greenhouse gas inventory"
+        params:
+            version=EEA_GHG_INVENTORY["version"],
+        run:
+            # the zip holds one folder with the CSV; take it out without unpacking
+            with ZipFile(input["zip"]) as archive:
+                (member,) = [n for n in archive.namelist() if n.endswith(".csv")]
+                with archive.open(member) as src:
+                    with open(output["csv"], "wb") as dst:
+                        copyfileobj(src, dst)
+
+
 if (GEBCO_DATASET := dataset_version("gebco"))["source"] in ["archive", "primary"]:
 
     rule retrieve_gebco:

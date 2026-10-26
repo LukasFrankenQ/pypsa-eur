@@ -46,6 +46,7 @@ desnz_ghg_emissions,1990-2024,primary,latest supported,2026-10-03,Final UK green
 desnz_ghg_emissions,1990-2024,archive,latest supported,2026-11-19,Final UK greenhouse gas emissions statistics published February 2026,https://data.pypsa.org/workflows/eur/desnz_ghg_emissions/1990-2024/final-greenhouse-gas-emissions-2024-by-source-datasets.xlsx
 dh_areas,341.5,primary,latest supported,2025-12-02,,https://fordatis.fraunhofer.de/bitstream/fordatis/341.5/2/dh_areas.gpkg
 dh_areas,341.5,archive,latest supported,2026-01-13,,https://data.pypsa.org/workflows/eur/dh_areas/341.5/dh_areas.gpkg
+eea_ghg_inventory,v33,primary,latest supported,2026-10-26,"EEA, National emissions reported to the UNFCCC and to the EU under the Governance Regulation, 2026 release (data 1990-2024, no UK); CSV of version 33 in a zip, md5 eb5497bb0391c55bf9265bf1c3b9a4db.",https://sdi.eea.europa.eu/datashare/s/fcKN2f9KK2AsARD/download?path=%2F&files=UNFCCC_33_csv.zip
 eez,v12_20231025,primary,latest supported,2025-12-02,API request used,https://www.marineregions.org/download_file.php
 eez,v12_20231025,archive,latest supported,2026-01-13,,https://data.pypsa.org/workflows/eur/eez/v12_20231025/World_EEZ_v12_20231025_LR.zip
 emobility,28-08-2016,primary,latest supported,2025-12-02,,https://zenodo.org/records/16899168/files/emobility.zip

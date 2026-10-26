@@ -329,6 +329,10 @@ class DataConfig(BaseModel):
         default_factory=_DataSourceConfig,
         description="DESNZ UK GHG emissions data source configuration.",
     )
+    eea_ghg_inventory: _DataSourceConfig = Field(
+        default_factory=lambda: _DataSourceConfig(source="primary"),
+        description="EEA greenhouse gas inventory (latest release, 1990 to two years ago) data source configuration.",
+    )
     gebco: _DataSourceConfig = Field(
         default_factory=_DataSourceConfig,
         description="GEBCO data source configuration.",
