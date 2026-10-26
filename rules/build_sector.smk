@@ -1373,14 +1373,21 @@ rule build_industrial_production_per_country_tomorrow:
         scripts("build_industrial_production_per_country_tomorrow.py")
 
 
+def input_industrial_sites(w) -> dict[str, str]:
+    """The site database the industrial distribution key weights by."""
+    if config_provider("industry", "distribution_key_source")(w) == "ets_sites":
+        return {"industrial_sites": resources("industrial_sites.csv")}
+    return {"hotmaps": rules.retrieve_hotmaps_industrial_sites.output["csv"]}
+
+
 rule build_industrial_distribution_key:
     """Builds nodal distribution keys per industry sector from Hotmaps industrial sites."""
     cache: True
     input:
+        unpack(input_industrial_sites),
         code_dependencies=code_dependencies("scripts/build_industrial_distribution_key.py"),
         onshore_regions=resources("onshore_regions.geojson"),
         clustered_pop_layout=resources("pop_layout.csv"),
-        hotmaps=rules.retrieve_hotmaps_industrial_sites.output["csv"],
         gem_gspt=rules.retrieve_gem_gspt.output["xlsx"],
         gem_gcpt=rules.retrieve_gem_gcct.output["xlsx"],
         gem_gct=rules.retrieve_gem_gct.output["xlsx"],
@@ -1396,6 +1403,7 @@ rule build_industrial_distribution_key:
         hotmaps_locate_missing=config_provider(
             "industry", "hotmaps_locate_missing", default=False
         ),
+        distribution_key_source=config_provider("industry", "distribution_key_source"),
         countries=config_provider("countries"),
     script:
         scripts("build_industrial_distribution_key.py")

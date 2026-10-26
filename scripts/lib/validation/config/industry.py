@@ -8,6 +8,8 @@ Industry configuration.
 See docs in https://pypsa-eur.readthedocs.io/en/latest/configuration/#industry_cf
 """
 
+from typing import Literal
+
 from pydantic import Field
 
 from scripts.lib.validation.config._base import ConfigModel
@@ -215,6 +217,10 @@ class IndustryConfig(ConfigModel):
     hotmaps_locate_missing: bool = Field(
         False,
         description="Locate industrial sites without valid locations based on city and countries.",
+    )
+    distribution_key_source: Literal["hotmaps", "ets_sites"] = Field(
+        "hotmaps",
+        description="The industrial sites that spread each industry subsector's production and energy demand over a country's regions, weighted by their CO2 emissions: `hotmaps` (Hotmaps Industrial Database, 2014 emissions) or `ets_sites` (`build_industrial_sites`: EU ETS verified emissions of the latest complete year, Great Britain from the NAEI). Cement, the steel routes and ammonia follow the GEM trackers and the ammonia plants either way; countries without sites fall back to population.",
     )
     reference_year: int = Field(
         2023,

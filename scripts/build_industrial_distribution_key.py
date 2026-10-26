@@ -7,6 +7,8 @@ Build distribution keys that split each country's industrial activity across its
 Industrial sites from the [Hotmaps industrial database](https://gitlab.com/hotmaps/industrial_sites/industrial_sites_Industrial_Database) are assigned to bus regions by location. Sites without coordinates are dropped or, if `industry: hotmaps_locate_missing` is enabled, geocoded from their city name. Within each country, a sector's key is the share of the sector's reported 2014 ETS or E-PRTR emissions located in each region, so the keys of one country sum to one. Missing site emissions are filled with the 20% quantile of the sector; if a country has no sites for a sector, the key falls back to the population share.
 
 Dedicated keys use plant capacities instead of emissions: the steel routes (EAF, DRI + EAF, integrated steelworks) cement, ammonia, methanol and high-value chemicals from the Global Energy Monitor plant trackers, and refineries from a supplementary plant list for countries not covered by Hotmaps. Countries without such chemical plants keep the key of the chemical industry. The population key is written alongside for sectors without site data.
+
+With ``industry: distribution_key_source: ets_sites``, the emissions are those of ``industrial_sites.csv`` from ``build_industrial_sites`` instead of Hotmaps (EU ETS verified emissions of the latest complete year, Great Britain from the NAEI), with its sectors mapped onto the Hotmaps subsectors (see ``ETS_SITE_SUBSECTORS``). Each site goes to a region of its own country: the one it lies in, else the nearest within 10 km. Oil and gas extraction is left out, as it is not industry demand in the model. A country whose sites name no glassworks (Great Britain: the NAEI has one sector for all minerals) spreads glass like its other mineral sites.
 """
 
 import logging
@@ -21,6 +23,33 @@ from scripts._helpers import configure_logging, set_scenario_config
 
 logger = logging.getLogger(__name__)
 cc = coco.CountryConverter()
+
+SUBSECTORS = [
+    "Iron and steel",
+    "Cement",
+    "Refineries",
+    "Paper and printing",
+    "Chemical industry",
+    "Glass",
+    "Non-ferrous metals",
+    "Non-metallic mineral products",
+    "Other non-classified",
+]
+# sectors of industrial_sites.csv (build_industrial_sites) onto the Hotmaps
+# subsectors; minerals are split into glass and the rest by activity and NACE
+ETS_SITE_SUBSECTORS = {
+    "Iron and steel": "Iron and steel",
+    "Cement and lime": "Cement",
+    "Refining": "Refineries",
+    "Pulp and paper": "Paper and printing",
+    "Chemicals": "Chemical industry",
+    "Glass, ceramics and other minerals": "Non-metallic mineral products",
+    "Non-ferrous metals": "Non-ferrous metals",
+    "Food and drink": "Other non-classified",
+    "Other industry": "Other non-classified",
+}
+# a site further than this from its country's regions is left out, in metres
+MAX_DISTANCE_M = 10_000.0
 
 
 def locate_missing_industrial_sites(df: pd.DataFrame) -> pd.DataFrame:
@@ -105,6 +134,69 @@ def prepare_hotmaps_database(
         gdf_filtered = gdf.loc[duplicated_i].query("country == @code")
         # concat not duplicated and filtered gdf
         gdf = pd.concat([gdf.drop(duplicated_i), gdf_filtered])
+
+    gdf["emissions"] = gdf["Emissions_ETS_2014"].fillna(gdf["Emissions_EPRTR_2014"])
+
+    return gdf
+
+
+def is_glassworks(activity: pd.Series, nace: pd.Series) -> pd.Series:
+    """Whether a minerals site makes glass, by its ETS activity or NACE group."""
+    by_activity = activity.fillna("").str.contains("glass", case=False)
+    by_nace = nace.astype(str).str.strip().str.startswith("23.1")
+    return by_activity | by_nace
+
+
+def prepare_ets_sites(fn: str, regions: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """
+    Load the industrial sites of build_industrial_sites with their Hotmaps
+    subsector and map them onto the bus regions of their own country.
+    """
+    df = pd.read_csv(fn, dtype={"nace": str})
+
+    df["Subsector"] = df["sector"].map(ETS_SITE_SUBSECTORS)
+    minerals = df["sector"] == "Glass, ceramics and other minerals"
+    glass = minerals & is_glassworks(df["activity"], df["nace"])
+    df.loc[glass, "Subsector"] = "Glass"
+    df = df[df["Subsector"].notna()]
+
+    # a country whose sites name no glassworks spreads glass like its minerals
+    with_glass = df.loc[df["Subsector"] == "Glass", "country"].unique()
+    stand_in = df[
+        (df["Subsector"] == "Non-metallic mineral products")
+        & ~df["country"].isin(with_glass)
+    ]
+    df = pd.concat([df, stand_in.assign(Subsector="Glass")], ignore_index=True)
+
+    gdf = gpd.GeoDataFrame(
+        df.rename(columns={"co2_t": "emissions"}),
+        geometry=gpd.points_from_xy(df["lon"], df["lat"]),
+        crs="EPSG:4326",
+    ).to_crs(3035)
+    buses = gpd.GeoDataFrame(
+        {"bus": regions.index}, geometry=regions.geometry.values, crs=regions.crs
+    ).to_crs(3035)
+    buses["country"] = buses["bus"].str[:2]
+
+    located = []
+    for country, sites_ct in gdf.groupby("country"):
+        buses_ct = buses.loc[buses["country"] == country, ["bus", "geometry"]]
+        if buses_ct.empty:
+            continue
+        joined = gpd.sjoin_nearest(
+            sites_ct, buses_ct, how="inner", max_distance=MAX_DISTANCE_M
+        )
+        # a site on the border of two regions is matched to both
+        located.append(joined[~joined.index.duplicated()])
+
+    gdf = pd.concat(located) if located else gdf.iloc[:0].assign(bus=None)
+
+    dropped = df["country"].isin(buses["country"]).sum() - len(gdf)
+    if dropped:
+        logger.info(
+            f"Left out {dropped} industrial sites further than "
+            f"{MAX_DISTANCE_M / 1e3:g} km from their country's regions."
+        )
 
     return gdf
 
@@ -230,7 +322,7 @@ def prepare_refineries_supplement(
 
 
 def build_nodal_distribution_key(
-    hotmaps: gpd.GeoDataFrame,
+    sites: gpd.GeoDataFrame,
     steel: gpd.GeoDataFrame,
     chemicals: gpd.GeoDataFrame,
     cement: gpd.GeoDataFrame,
@@ -241,8 +333,13 @@ def build_nodal_distribution_key(
 ) -> pd.DataFrame:
     """
     Build nodal distribution keys for each sector.
+
+    `sites` are the Hotmaps sites or the EU ETS sites, with their
+    ``Subsector``, ``bus``, ``country`` and ``emissions``.
     """
-    sectors = hotmaps.Subsector.unique()
+    sectors = list(sites.Subsector.unique())
+    # a selection without sites of a subsector still gets its column
+    sectors += [s for s in SUBSECTORS if s not in sectors]
 
     keys = pd.DataFrame(index=regions.index, columns=sectors, dtype=float)
 
@@ -254,12 +351,10 @@ def build_nodal_distribution_key(
     for sector, country in product(sectors, countries):
         regions_ct = regions.index[regions.index.str.contains(country)]
 
-        facilities = hotmaps.query("country == @country and Subsector == @sector")
+        facilities = sites.query("country == @country and Subsector == @sector")
 
         if not facilities.empty:
-            emissions = facilities["Emissions_ETS_2014"].fillna(
-                hotmaps["Emissions_EPRTR_2014"].dropna()
-            )
+            emissions = facilities["emissions"]
             if emissions.sum() == 0:
                 key = pd.Series(1 / len(facilities), facilities.index)
             else:
@@ -455,9 +550,12 @@ if __name__ == "__main__":
 
     regions = gpd.read_file(snakemake.input.onshore_regions).set_index("name")
 
-    hotmaps = prepare_hotmaps_database(
-        snakemake.input.hotmaps, regions, snakemake.params.hotmaps_locate_missing
-    )
+    if snakemake.params.distribution_key_source == "ets_sites":
+        sites = prepare_ets_sites(snakemake.input.industrial_sites, regions)
+    else:
+        sites = prepare_hotmaps_database(
+            snakemake.input.hotmaps, regions, snakemake.params.hotmaps_locate_missing
+        )
 
     steel = prepare_gem_steel_database(snakemake.input.gem_gspt, regions)
 
@@ -470,7 +568,7 @@ if __name__ == "__main__":
     )
 
     keys = build_nodal_distribution_key(
-        hotmaps,
+        sites,
         steel,
         chemicals,
         cement,

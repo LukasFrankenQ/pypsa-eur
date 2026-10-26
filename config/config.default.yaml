@@ -1348,6 +1348,7 @@ industry:
   MWh_naphtha_per_tHVC: 12.622
   MWh_MeOH_per_tMeOH: 5.528
   hotmaps_locate_missing: false
+  distribution_key_source: hotmaps
   reference_year: 2023
   oil_refining_emissions: 0.013
   temporal_electricity_industry_load: true
