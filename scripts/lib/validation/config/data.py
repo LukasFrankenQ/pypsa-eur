@@ -173,6 +173,18 @@ class DataConfig(BaseModel):
         default_factory=_DataSourceConfig,
         description="Hotmaps industrial sites data source configuration.",
     )
+    eutl_data_package: _DataSourceConfig = Field(
+        default_factory=lambda: _DataSourceConfig(source="primary"),
+        description="The EU ETS data package of Abrell (EUTL compilation) data source configuration.",
+    )
+    naei_point_sources: _DataSourceConfig = Field(
+        default_factory=lambda: _DataSourceConfig(source="primary"),
+        description="UK NAEI point sources data source configuration.",
+    )
+    sodir_facilities: _DataSourceConfig = Field(
+        default_factory=lambda: _DataSourceConfig(source="primary"),
+        description="Norwegian Offshore Directorate facilities data source configuration.",
+    )
     enspreso_biomass: _DataSourceConfig = Field(
         default_factory=_DataSourceConfig,
         description="Enspreso biomass data source configuration.",

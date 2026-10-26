@@ -1421,6 +1421,39 @@ rule build_industrial_production_per_node:
         scripts("build_industrial_production_per_node.py")
 
 
+rule build_industrial_sites:
+    cache: True
+    input:
+        code_dependencies=code_dependencies("scripts/build_industrial_sites.py"),
+        eutl_installations=rules.retrieve_eutl_data_package.output["installations"],
+        eutl_compliance=rules.retrieve_eutl_data_package.output["compliance"],
+        eutl_locations=rules.retrieve_eutl_data_package.output[
+            "installation_locations"
+        ],
+        eutl_nace=rules.retrieve_eutl_data_package.output["nace_mappings"],
+        eutl_plant_links=rules.retrieve_eutl_data_package.output[
+            "map_installation_to_plant"
+        ],
+        naei_point_sources=rules.retrieve_naei_point_sources.output["xlsx"],
+        sodir_facilities=rules.retrieve_sodir_facilities.output["geojson"],
+        country_shapes=resources("country_shapes.geojson"),
+        offshore_shapes=resources("offshore_shapes.geojson"),
+    output:
+        sites=resources("industrial_sites.csv"),
+        left_out=resources("industrial_sites_left_out.csv"),
+    log:
+        logs("build_industrial_sites.log"),
+    threads: 1
+    resources:
+        mem_mb=4000,
+    params:
+        countries=config_provider("countries"),
+    message:
+        "Locating industrial sites and their CO2 emissions"
+    script:
+        scripts("build_industrial_sites.py")
+
+
 rule build_industrial_energy_demand_per_node:
     """Computes industrial energy demand per carrier and model region from production and ratios."""
     cache: True

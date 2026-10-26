@@ -1599,6 +1599,15 @@ data:
   hotmaps_industrial_sites:
     source: archive
     version: latest
+  eutl_data_package:
+    source: primary
+    version: latest
+  naei_point_sources:
+    source: primary
+    version: latest
+  sodir_facilities:
+    source: primary
+    version: latest
   enspreso_biomass:
     source: archive
     version: latest

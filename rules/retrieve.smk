@@ -5,7 +5,7 @@
 import requests
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-from shutil import move, unpack_archive, rmtree, copy2
+from shutil import move, unpack_archive, rmtree, copy2, copyfileobj
 from zipfile import ZipFile
 
 
@@ -914,6 +914,86 @@ if (HOTMAPS_INDUSTRIAL_SITES := dataset_version("hotmaps_industrial_sites"))[
             version=HOTMAPS_INDUSTRIAL_SITES["version"],
         run:
             copy2(input["csv"], output["csv"])
+
+
+EUTL_TABLES = [
+    "installations",
+    "compliance",
+    "installation_locations",
+    "nace_mappings",
+    "map_installation_to_plant",
+]
+
+if (EUTL_DATA_PACKAGE := dataset_version("eutl_data_package"))["source"] in [
+    "primary",
+    "archive",
+]:
+
+    rule retrieve_eutl_data_package:
+        cache: "omit-storage-content"
+        input:
+            zip=storage(EUTL_DATA_PACKAGE["url"]),
+        output:
+            **{
+                table: f"{EUTL_DATA_PACKAGE['folder']}/{table}.csv"
+                for table in EUTL_TABLES
+            },
+        retries: 2
+        message:
+            "Retrieving the EU ETS data package (EUTL)"
+        params:
+            version=EUTL_DATA_PACKAGE["version"],
+        run:
+            # only the installation tables: the transactions alone weigh 417 MB
+            with ZipFile(input["zip"]) as archive:
+                for table in EUTL_TABLES:
+                    with archive.open(f"{table}.csv") as src:
+                        with open(output[table], "wb") as dst:
+                            copyfileobj(src, dst)
+
+
+if (NAEI_POINT_SOURCES := dataset_version("naei_point_sources"))["source"] in [
+    "primary",
+    "archive",
+]:
+
+    rule retrieve_naei_point_sources:
+        cache: "omit-storage-content"
+        input:
+            xlsx=storage(NAEI_POINT_SOURCES["url"]),
+        output:
+            xlsx=f"{NAEI_POINT_SOURCES['folder']}/NAEIPointsSources.xlsx",
+        retries: 2
+        message:
+            "Retrieving the NAEI point sources"
+        params:
+            version=NAEI_POINT_SOURCES["version"],
+        run:
+            copy2(input["xlsx"], output["xlsx"])
+
+
+if (SODIR_FACILITIES := dataset_version("sodir_facilities"))["source"] in [
+    "primary",
+    "archive",
+]:
+
+    rule retrieve_sodir_facilities:
+        cache: "omit-storage-content"
+        output:
+            geojson=f"{SODIR_FACILITIES['folder']}/facilities.geojson",
+        retries: 2
+        message:
+            "Retrieving the Norwegian Offshore Directorate facilities"
+        params:
+            version=SODIR_FACILITIES["version"],
+            url=SODIR_FACILITIES["url"],
+        run:
+            import json
+
+            response = requests.get(params["url"], timeout=120)
+            response.raise_for_status()
+            with open(output["geojson"], "w") as f:
+                json.dump(response.json(), f)
 
 
 if (NITROGEN_STATISTICS_DATASET := dataset_version("nitrogen_statistics"))[
