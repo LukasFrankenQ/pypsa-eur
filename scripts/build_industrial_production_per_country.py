@@ -142,6 +142,43 @@ def find_physical_output(df: pd.DataFrame) -> slice:
     return slice(start, end)
 
 
+def eurostat_industry_energy(country, eurostat, year):
+    """
+    The country's final energy use per industrial sector in ktoe, from the
+    Eurostat balances of ``year`` or, when that year carries no industry rows
+    for the country, of the latest earlier year that does: the UK series ends
+    in 2019 and Ukraine's in 2020, and a reference year past the end would
+    otherwise scale the country's whole industrial production to zero.
+
+    Returns the series and the year it comes from. A country Eurostat never
+    reports industry for returns an empty series (every ratio NaN, the
+    production zero as before) and ``year``.
+    """
+    rows = eurostat.query(
+        "country == @country and siec == 'TOTAL' and nrg_bal in @eb_sectors.keys()"
+    ).dropna(subset=["value"])
+    rows = rows[rows.year <= year]
+    if rows.empty:
+        logger.warning(
+            f"Eurostat carries no industrial energy use for {country} up to {year}; "
+            "its industrial production scales to zero."
+        )
+        return pd.Series(dtype=float), year
+    year_used = int(rows.year.max())
+    if year_used != year:
+        logger.info(
+            f"Eurostat's industrial energy use for {country} ends in {year_used}; "
+            f"scaling its {year} production from that year."
+        )
+    e_country = (
+        rows.query("year == @year_used")
+        .set_index("nrg_bal")
+        .value.rename(eb_sectors)
+        .div(ktoe_to_twh)
+    )
+    return e_country, year_used
+
+
 def get_energy_ratio(country, eurostat, jrc_dir, year, ch_industrial_production):
     if country == "CH":
         # data ranges between 2014-2023
@@ -151,15 +188,7 @@ def get_energy_ratio(country, eurostat, jrc_dir, year, ch_industrial_production)
         e_country *= tj_to_ktoe
     else:
         # estimate physical output, energy consumption in the sector and country
-        e_country = (
-            eurostat.query(
-                "year == @year and country == @country and "
-                "siec == 'TOTAL' and nrg_bal in @eb_sectors.keys()"
-            )
-            .set_index("nrg_bal")
-            .value.rename(eb_sectors)
-            .div(ktoe_to_twh)
-        )
+        e_country, year = eurostat_industry_energy(country, eurostat, year)
 
     root = Path(jrc_dir, "EU27")
     fn = next(
