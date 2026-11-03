@@ -499,6 +499,27 @@ class _LimitMaxGrowthConfig(BaseModel):
     )
 
 
+class _EnhancedGeothermalIndustryHeatConfig(BaseModel):
+    """Configuration for `sector.enhanced_geothermal.industry_heat`: the EGS surface heat delivered to industrial heat loads."""
+
+    enable: bool = Field(
+        False,
+        description="Add, per region with EGS potential, a link from the surface heat bus of the wells to the industrial heat loads of `bands`, priced like the district-heat link: the region's capacity-weighted plant investment times `surcharge`.",
+    )
+    bands: list[Literal["low-temperature", "heat100-200"]] = Field(
+        default_factory=lambda: ["low-temperature", "heat100-200"],
+        description="The industrial heat loads the surface heat may serve: `low-temperature` is the node's low-temperature heat for industry (skipped where that load sits on a district-heating bus the geothermal district heat link already serves), `heat100-200` the endogenous 100-200 °C band (needs `sector: industry_t: endogen`). The wellhead floor `min_temperature` (150 °C) covers both; hotter bands are not offered.",
+    )
+    efficiency: float | None = Field(
+        None,
+        description="Heat delivered per unit of surface heat; null takes the cost data's `geothermal: district heat-input`.",
+    )
+    surcharge: float | None = Field(
+        None,
+        description="Investment of the heat delivery per kW_th as a percentage of the organic Rankine cycle plant investment; null takes the cost data's `geothermal: district heat surcharge`.",
+    )
+
+
 class _EnhancedGeothermalConfig(BaseModel):
     """Configuration for `sector.enhanced_geothermal` settings."""
 
@@ -560,6 +581,10 @@ class _EnhancedGeothermalConfig(BaseModel):
     lcoe_bins: list[float] = Field(
         default_factory=lambda: [75, 100, 125, 150, 175, 200, 250, 300, 400],
         description="Upper edges (EUR/MWh_el, at `availability` and the cost data's discount rate) of the supply-curve steps per region; columns above the last edge are dropped.",
+    )
+    industry_heat: _EnhancedGeothermalIndustryHeatConfig = Field(
+        default_factory=_EnhancedGeothermalIndustryHeatConfig,
+        description="Surface heat of the wells delivered to industrial heat loads.",
     )
 
 

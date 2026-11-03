@@ -734,6 +734,7 @@ plotting:
     geothermal heat: "#ba91b1"
     geothermal district heat: "#d19D00"
     geothermal organic rankine cycle: "#ffbf00"
+    geothermal industry heat: '#c46a8a'
     AC: "#70af1d"
     "AC-AC": "#70af1d"
     AC line: "#70af1d"

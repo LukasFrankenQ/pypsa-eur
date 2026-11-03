@@ -7298,7 +7298,7 @@ def add_enhanced_geothermal(
         `fom` (EUR/kW_el/yr) and the organic Rankine cycle `efficiency`.
     egs_config : dict
         `sector.enhanced_geothermal`: `var_cf`, `flexible`, `max_hours`,
-        `max_boost`, `availability` and `lifetime`.
+        `max_boost`, `availability`, `lifetime` and `industry_heat`.
     costs : pd.DataFrame
         Technology cost assumptions; the `geothermal` row gives the district heat
         surcharge and the district heat-input efficiency.
@@ -7320,6 +7320,17 @@ def add_enhanced_geothermal(
     investment times the cycle efficiency. Fixed O&M is split between wells and
     plant in proportion to their investment. With `flexible`, a reservoir
     `StorageUnit` on the surface bus allows boosting.
+
+    With `industry_heat: enable`, a link per region and band in
+    `industry_heat: bands` (carrier `geothermal industry heat`) delivers the
+    surface heat to the industrial heat loads: the endogenous 100-200 °C band
+    bus (`<bus> heat100-200 industry`, present with `industry_t: endogen`) and
+    the bus of the node's low-temperature heat for industry, unless that is the
+    district-heating bus the district-heat link already serves. It is priced
+    like the district-heat link, the region's capacity-weighted plant
+    investment times the surcharge, so the cost of delivery averages the
+    region's supply-curve steps; the wells keep their per-step cost. The
+    wellhead floor `min_temperature` (150 °C) covers both bands.
     """
     steps = pd.read_csv(egs_potentials)
     if steps.empty:
@@ -7331,6 +7342,15 @@ def add_enhanced_geothermal(
     crf = pypsa.costs.annuity(discount_rate, lifetime)
     efficiency_dh = costs.at["geothermal", "district heat-input"]
     dh_surcharge = costs.at["geothermal", "district heat surcharge"] / 100.0
+    industry_heat = egs_config.get("industry_heat") or {}
+    industry_bands = (
+        list(industry_heat.get("bands", [])) if industry_heat.get("enable") else []
+    )
+    efficiency_ih = industry_heat.get("efficiency")
+    if efficiency_ih is None:
+        efficiency_ih = efficiency_dh
+    surcharge_ih = industry_heat.get("surcharge")
+    surcharge_ih = dh_surcharge if surcharge_ih is None else surcharge_ih / 100.0
 
     capex = steps.well_capex + steps.plant_capex
     fom_share = steps.fom / capex
@@ -7342,6 +7362,8 @@ def add_enhanced_geothermal(
     steps["p_nom_max_th"] = steps.p_nom_max / steps.efficiency
 
     n.add("Carrier", "geothermal heat")
+    if industry_bands:
+        n.add("Carrier", "geothermal industry heat")
     n.add(
         "Bus",
         spatial.geothermal_heat.nodes,
@@ -7370,6 +7392,7 @@ def add_enhanced_geothermal(
     )
 
     steps = steps.loc[steps.bus.isin(n.buses.index)]
+    served_by_district_heat = []
     for bus, bus_steps in steps.groupby("bus"):
         surface = f"{bus} geothermal heat surface"
         n.add(
@@ -7421,15 +7444,36 @@ def add_enhanced_geothermal(
             lifetime=lifetime,
         )
 
+        district_heat_bus = None
         if as_chp and bus + " urban central heat" in n.buses.index:
+            district_heat_bus = bus + " urban central heat"
             n.add(
                 "Link",
                 bus + " geothermal heat district heat",
                 bus0=surface,
-                bus1=bus + " urban central heat",
+                bus1=district_heat_bus,
                 carrier="geothermal district heat",
                 capital_cost=plant_cost * efficiency_orc * dh_surcharge,
                 efficiency=efficiency_dh,
+                p_nom_extendable=True,
+                lifetime=lifetime,
+            )
+
+        for band in industry_bands:
+            target = _industry_heat_bus(n, bus, band)
+            if target is None:
+                continue
+            if target == district_heat_bus:
+                served_by_district_heat.append(bus)
+                continue
+            n.add(
+                "Link",
+                f"{bus} geothermal industry heat {band.removeprefix('heat')}",
+                bus0=surface,
+                bus1=target,
+                carrier="geothermal industry heat",
+                capital_cost=plant_cost * efficiency_orc * surcharge_ih,
+                efficiency=efficiency_ih,
                 p_nom_extendable=True,
                 lifetime=lifetime,
             )
@@ -7448,6 +7492,30 @@ def add_enhanced_geothermal(
                 max_hours=egs_config["max_hours"],
                 cyclic_state_of_charge=True,
             )
+
+    if industry_bands:
+        added = n.links.index[n.links.carrier == "geothermal industry heat"]
+        logger.info(
+            "[EGS] %d geothermal industry heat links for bands %s; in %d regions "
+            "the low-temperature industry heat sits on district heating, which "
+            "the district-heat link serves.",
+            len(added),
+            industry_bands,
+            len(served_by_district_heat),
+        )
+
+
+def _industry_heat_bus(n, bus, band):
+    """
+    The bus a region's industrial heat load of `band` sits on, or None when the
+    region has no such load: the endogenous `heat100-200` band bus, or the bus
+    of the node's low-temperature heat for industry.
+    """
+    if band == "low-temperature":
+        load = f"{bus} low-temperature heat for industry"
+        return n.loads.at[load, "bus"] if load in n.loads.index else None
+    target = f"{bus} {band} industry"
+    return target if target in n.buses.index else None
 
 
 def add_import_options(

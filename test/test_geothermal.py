@@ -307,6 +307,149 @@ def test_egs_links_are_sized_in_heat_and_priced_per_step(tmp_path):
     check_unique_component_names(n)
 
 
+INDUSTRY_HEAT = {
+    "enable": True,
+    "bands": ["low-temperature", "heat100-200"],
+    "efficiency": None,
+    "surcharge": None,
+}
+
+
+def _industry_network() -> pypsa.Network:
+    """
+    The EGS network with the industrial heat loads of both regions: N0's
+    low-temperature heat on district heating, N1's on decentral heat.
+    """
+    n = _egs_network()
+    for node in ["N0", "N1"]:
+        band = f"{node} heat100-200 industry"
+        n.add("Bus", band, carrier="heat100-200 industry", location=node)
+        n.add(
+            "Load",
+            band + " demand",
+            bus=band,
+            carrier="heat100-200 industry",
+            p_set=1.0,
+        )
+    n.add(
+        "Bus",
+        "N1 services urban decentral heat",
+        carrier="services urban decentral heat",
+        location="N1",
+    )
+    n.add(
+        "Load",
+        [
+            "N0 low-temperature heat for industry",
+            "N1 low-temperature heat for industry",
+        ],
+        bus=["N0 urban central heat", "N1 services urban decentral heat"],
+        carrier="low-temperature heat for industry",
+        p_set=1.0,
+    )
+    return n
+
+
+def test_egs_surface_heat_serves_the_industrial_heat_loads(tmp_path):
+    n = _industry_network()
+    config = {**EGS_CONFIG, "industry_heat": INDUSTRY_HEAT}
+    add_enhanced_geothermal(n, _egs_steps(tmp_path), config, _costs(), 0.07, _spatial())
+    links = n.links[n.links.carrier == "geothermal industry heat"]
+    assert set(links.index) == {
+        "N0 geothermal industry heat 100-200",
+        "N1 geothermal industry heat 100-200",
+        "N1 geothermal industry heat low-temperature",
+    }
+    band = links.loc["N0 geothermal industry heat 100-200"]
+    assert band.bus0 == "N0 geothermal heat surface"
+    assert band.bus1 == "N0 heat100-200 industry"
+    assert band.p_nom_extendable
+    assert band.lifetime == 30
+    # priced like the district-heat link: the region's capacity-weighted
+    # plant cost at the district-heat surcharge and efficiency
+    chp = n.links.loc["N0 geothermal heat district heat"]
+    assert band.capital_cost == pytest.approx(chp.capital_cost)
+    assert band.efficiency == pytest.approx(0.8)
+    # N0's low-temperature industry heat sits on district heating, which the
+    # district-heat link serves; N1 has no district heating
+    assert "N0 geothermal industry heat low-temperature" not in n.links.index
+    low = links.loc["N1 geothermal industry heat low-temperature"]
+    assert low.bus1 == "N1 services urban decentral heat"
+    assert "N1 geothermal heat district heat" not in n.links.index
+    # the wells are untouched
+    assert (n.links.carrier == "geothermal heat").sum() == 3
+    assert "geothermal industry heat" in n.carriers.index
+    check_unique_component_names(n)
+
+
+def test_egs_industry_heat_takes_its_own_surcharge_and_efficiency(tmp_path):
+    n = _industry_network()
+    config = {
+        **EGS_CONFIG,
+        "industry_heat": {
+            "enable": True,
+            "bands": ["heat100-200"],
+            "efficiency": 0.9,
+            "surcharge": 10.0,
+        },
+    }
+    add_enhanced_geothermal(n, _egs_steps(tmp_path), config, _costs(), 0.07, _spatial())
+    links = n.links[n.links.carrier == "geothermal industry heat"]
+    assert set(links.index) == {
+        "N0 geothermal industry heat 100-200",
+        "N1 geothermal industry heat 100-200",
+    }
+    band = links.loc["N0 geothermal industry heat 100-200"]
+    orc = n.links.loc["N0 geothermal organic rankine cycle"]
+    assert band.capital_cost == pytest.approx(orc.capital_cost * 0.10)
+    assert band.efficiency == pytest.approx(0.9)
+
+
+def test_egs_industry_heat_off_adds_nothing(tmp_path):
+    n = _industry_network()
+    config = {**EGS_CONFIG, "industry_heat": {**INDUSTRY_HEAT, "enable": False}}
+    add_enhanced_geothermal(n, _egs_steps(tmp_path), config, _costs(), 0.07, _spatial())
+    assert not (n.links.carrier == "geothermal industry heat").any()
+    assert "geothermal industry heat" not in n.carriers.index
+
+
+def test_egs_industry_heat_needs_the_band_bus(tmp_path):
+    # without `industry_t: endogen` there is no band bus: only the
+    # low-temperature load is served
+    n = _egs_network()
+    n.add(
+        "Bus",
+        "N1 services urban decentral heat",
+        carrier="services urban decentral heat",
+        location="N1",
+    )
+    n.add(
+        "Load",
+        "N1 low-temperature heat for industry",
+        bus="N1 services urban decentral heat",
+        carrier="low-temperature heat for industry",
+        p_set=1.0,
+    )
+    config = {**EGS_CONFIG, "industry_heat": INDUSTRY_HEAT}
+    add_enhanced_geothermal(n, _egs_steps(tmp_path), config, _costs(), 0.07, _spatial())
+    links = n.links[n.links.carrier == "geothermal industry heat"]
+    assert list(links.index) == ["N1 geothermal industry heat low-temperature"]
+
+
+def test_flexible_egs_constraint_ignores_the_industry_heat_links(tmp_path):
+    n = _industry_network()
+    n.add("Generator", "N0 slack", bus="N0", p_nom=1e3, marginal_cost=1e3)
+    config = {**EGS_CONFIG, "industry_heat": INDUSTRY_HEAT}
+    add_enhanced_geothermal(n, _egs_steps(tmp_path), config, _costs(), 0.07, _spatial())
+    n.optimize.create_model()
+    add_flexible_egs_constraint(n)
+    constraint = n.model.constraints[
+        "upper_bound_charging_capacity_of_geothermal_reservoir"
+    ]
+    # N0's reservoir is still bounded by its two wells alone
+    assert constraint.lhs.sel(bus="N0 geothermal heat surface").nterm == 3
+
+
 def test_flexible_egs_constraint_is_one_row_per_region(tmp_path):
     n = _egs_network()
     n.add("Generator", "N0 slack", bus="N0", p_nom=1e3, marginal_cost=1e3)

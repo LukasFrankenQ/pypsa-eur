@@ -1227,6 +1227,13 @@ sector:
     - 250
     - 300
     - 400
+    industry_heat:
+      enable: false
+      bands:
+      - "low-temperature"
+      - "heat100-200"
+      efficiency:
+      surcharge:
   solid_biomass_import:
     enable: false
     price: 54
