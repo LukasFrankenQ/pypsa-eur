@@ -7312,7 +7312,10 @@ def add_enhanced_geothermal(
     Notes
     -----
     Per region, wells (one link per supply-curve step, heat from the source node to
-    `<bus> geothermal heat surface`) carry the wellfield investment, an organic
+    `<bus> geothermal heat surface`; by default `lcoe_bins` has a single edge, so a
+    region has one well link, `<bus> enhanced geothermal`, holding its whole
+    potential at the capacity-weighted mean cost of its columns) carry the
+    wellfield investment, an organic
     Rankine cycle link converts the surface heat to electricity, and, where the
     region has district heating, a link delivers the surface heat to it at the
     district-heat surcharge on the plant investment (combined heat and power). The
@@ -7403,8 +7406,12 @@ def add_enhanced_geothermal(
             carrier="geothermal heat",
         )
 
+        # one step per region (the default `lcoe_bins`) is the region's whole
+        # potential at its average cost and needs no step index in the name
         well_name = pd.Index(
-            [f"{bus} enhanced geothermal {i}" for i in range(len(bus_steps))]
+            [f"{bus} enhanced geothermal"]
+            if len(bus_steps) == 1
+            else [f"{bus} enhanced geothermal {i}" for i in range(len(bus_steps))]
         )
         bus_steps = bus_steps.set_axis(well_name)
         if egs_config["var_cf"]:

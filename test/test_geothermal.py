@@ -137,6 +137,26 @@ def test_bin_supply_curve_weights_costs_by_capacity():
     assert steps.lcoe.iloc[0] == pytest.approx((80 + 270) / 4)
 
 
+def test_bin_supply_curve_with_one_edge_is_one_regional_average_step():
+    """
+    The default `lcoe_bins` (one edge): a region's whole potential below the
+    edge at the capacity-weighted mean of its columns, cells above dropped.
+    """
+    cells = pd.DataFrame(
+        {
+            "bus": ["A", "A", "A", "B"],
+            "lcoe": [80.0, 90.0, 140.0, 500.0],
+            "p_nom_max": [1.0, 3.0, 2.0, 5.0],
+            "capex": [10.0, 20.0, 30.0, 40.0],
+        }
+    )
+    steps = bin_supply_curve(cells, "lcoe", "p_nom_max", bins=[400])
+    assert list(steps.bus) == ["A"]
+    assert steps.p_nom_max.tolist() == [6.0]
+    assert steps.capex.iloc[0] == pytest.approx((10 + 60 + 60) / 6)
+    assert steps.lcoe.iloc[0] == pytest.approx((80 + 270 + 280) / 6)
+
+
 def _columns(temperatures: dict[float, list[float]], **attrs) -> xr.Dataset:
     depths = sorted(temperatures)
     n_columns = len(temperatures[depths[0]])
@@ -277,7 +297,7 @@ def test_egs_links_are_sized_in_heat_and_priced_per_step(tmp_path):
     assert list(wells.index) == [
         "N0 enhanced geothermal 0",
         "N0 enhanced geothermal 1",
-        "N1 enhanced geothermal 0",
+        "N1 enhanced geothermal",
     ]
     well = wells.loc["N0 enhanced geothermal 0"]
     assert well.p_nom_max == pytest.approx(100 / 0.12)
@@ -348,6 +368,32 @@ def _industry_network() -> pypsa.Network:
         p_set=1.0,
     )
     return n
+
+
+def test_egs_single_step_region_is_one_well_at_the_average_cost(tmp_path):
+    """
+    One step per region (the default binning): one well link without a step
+    index, the region's whole potential, the cycle and delivery links at that
+    step's cost and efficiency.
+    """
+    steps = pd.read_csv(_egs_steps(tmp_path))
+    steps = steps.loc[steps.bus == "N1"]
+    path = tmp_path / "one_step.csv"
+    steps.to_csv(path, index=False)
+    n = _egs_network()
+    add_enhanced_geothermal(n, str(path), EGS_CONFIG, _costs(), 0.07, _spatial())
+    wells = n.links[n.links.carrier == "geothermal heat"]
+    assert list(wells.index) == ["N1 enhanced geothermal"]
+    assert wells.p_nom_max.iloc[0] == pytest.approx(50 / 0.13)
+    orc = n.links.loc["N1 geothermal organic rankine cycle"]
+    assert orc.efficiency == pytest.approx(0.13)
+    crf = annuity(30, 0.07)
+    fom_share = 160 / 10000
+    nyears = 3 / 8760
+    assert orc.capital_cost == pytest.approx(
+        (crf + fom_share) * 3000 * 1e3 * nyears * 0.13
+    )
+    assert "N0 enhanced geothermal" not in n.links.index
 
 
 def test_egs_surface_heat_serves_the_industrial_heat_loads(tmp_path):

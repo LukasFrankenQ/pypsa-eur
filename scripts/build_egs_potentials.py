@@ -16,7 +16,8 @@ USD2021 to EUR2020 with `usd2021_to_eur`. Each column keeps its cheapest depth b
 levelised cost (at `availability`, the cost data's discount rate and `lifetime`);
 capacity is the model's technical density times the column's ground area times the
 share of its land available for onshore wind. Columns are grouped per region into
-steps of levelised cost (`lcoe_bins`).
+steps of levelised cost (`lcoe_bins`); with the default single edge each region is one
+step, its whole potential at the capacity-weighted mean cost of its columns.
 
 The capacity factors follow the ambient-temperature dependence of binary plants
 (Ricks et al., The Role of Flexible Geothermal Power in Decarbonized Electricity

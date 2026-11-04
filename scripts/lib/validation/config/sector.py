@@ -579,8 +579,8 @@ class _EnhancedGeothermalConfig(BaseModel):
         description="Conversion of the cost model's USD2021 to the cost data's EUR2020: US CPI-U 2020/2021 (0.955) times the 2020 ECB reference rate (0.8755 EUR/USD).",
     )
     lcoe_bins: list[float] = Field(
-        default_factory=lambda: [75, 100, 125, 150, 175, 200, 250, 300, 400],
-        description="Upper edges (EUR/MWh_el, at `availability` and the cost data's discount rate) of the supply-curve steps per region; columns above the last edge are dropped.",
+        default_factory=lambda: [400],
+        description="Upper edges (EUR/MWh_el, at `availability` and the cost data's discount rate) of the supply-curve steps per region; columns above the last edge are dropped. A single edge (the default) makes one step per region, its capacity the region's whole potential and its cost and efficiency the capacity-weighted mean over the region's columns: the model does not resolve where within a region the heat users and the hot rock coincide, so a region's average is what its industry and district heat can count on, not its cheapest tranche. Several edges (e.g. 75, 100, 125, 150, 175, 200, 250, 300, 400) restore a stepped supply curve per region.",
     )
     industry_heat: _EnhancedGeothermalIndustryHeatConfig = Field(
         default_factory=_EnhancedGeothermalIndustryHeatConfig,
