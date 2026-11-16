@@ -134,12 +134,13 @@ pydeflate = ">=2.3.4"
 snakemake-logger-plugin-snkmt = "==0.1.6" # For better pypsa-app integration
 
 # Git pin for the cache fixes (fetch parent dir, nested outputs, dir timestamp,
-# dependency outputs in the hash). Back to conda snakemake-minimal once a release
-# carries them (upstream PRs pending). Held before the fork's bare --cache
-# forwarding, which makes a locally spawned run: job store its output twice
-# and leaves the cache entry a symlink to itself.
+# dependency outputs in the hash, --cache bound to the storage provider its
+# location names). Back to conda snakemake-minimal once a release carries them
+# (upstream PRs pending). Held off the fork's bare --cache forwarding, which
+# makes a locally spawned run: job store its output twice and leaves the cache
+# entry a symlink to itself.
 [pypi-dependencies]
-snakemake = { git = "https://github.com/lkstrp/snakemake.git", rev = "3230abfdb2ffe14d7a0880254f7b29c233286d2f" }
+snakemake = { git = "https://github.com/lkstrp/snakemake.git", rev = "8c34c0a8b983f7ee9c9131604073d4a46504d5fc" }
 # The cached-http storage plugin, vendored with a cache-before-metadata fix for
 # the immutable hosts (vendor/snakemake-storage-plugin-cached-http/README.md).
 snakemake-storage-plugin-cached-http = { path = "vendor/snakemake-storage-plugin-cached-http" }
