@@ -10,6 +10,7 @@ pull:
   - /results/**
   - /logs/**
   - /resources/onshore_regions.geojson
+  - /resources/**cell_capacity_factor_*.nc
 keep:
   - /data/
   - /resources/

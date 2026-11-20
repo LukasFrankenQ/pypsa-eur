@@ -104,6 +104,7 @@ OSM_DATASET = dataset_version("osm")
 include: "rules/collect.smk"
 include: "rules/retrieve.smk"
 include: "rules/build_electricity.smk"
+include: "rules/cell_capacity_factor.smk"
 include: "rules/build_sector.smk"
 include: "rules/compose.smk"
 include: "rules/solve.smk"
