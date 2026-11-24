@@ -105,6 +105,9 @@ snakemake-executor-plugin-cluster-generic = ">=1.0.9"
 # sdist-only on PyPI, so the git snakemake pin below must not build them.
 connection_pool = "*"
 immutables = "*"
+# Bounds of the git snakemake pin (9.27) that conda would otherwise outrun.
+packaging = ">=24,<26"
+sqlalchemy = ">=2.0.14,<2.1"
 snakemake-storage-plugin-http = ">=0.3"
 tenacity = ">=9.1.2"
 tqdm = ">=4.67.1"
