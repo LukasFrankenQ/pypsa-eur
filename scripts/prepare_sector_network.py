@@ -5281,6 +5281,7 @@ def add_waste(
         unit="MWh_LHV",
     )
 
+        suffix=" Generator",
     n.add(
         "Generator",
         spatial.waste.nodes,
@@ -5312,6 +5313,7 @@ def add_waste(
             carrier="municipal solid waste",
         )
 
+            suffix=" Generator",
         n.add(
             "Generator",
             spatial.waste.msw,
@@ -5324,6 +5326,7 @@ def add_waste(
 
         # municipal solid waste is CO2 neutral: the credit cancels the
         # emissions of its incineration together with the plastic waste
+            suffix=" to waste",
         n.add(
             "Link",
             spatial.waste.msw,
@@ -5981,6 +5984,7 @@ def add_industry(
         else:
             p_set = industrial_demand["ammonia"].sum() / nhours
 
+            suffix=" demand",
         n.add(
             "Load",
             spatial.ammonia.nodes,
@@ -6018,6 +6022,7 @@ def add_industry(
             unit="MWh_LHV",
         )
 
+            suffix=" demand",
         n.add(
             "Load",
             spatial.coal.industry,
@@ -6026,6 +6031,7 @@ def add_industry(
             p_set=p_set,
         )
 
+            suffix=" conversion",
         n.add(
             "Link",
             spatial.coal.industry,
@@ -6066,6 +6072,7 @@ def add_industry(
         )
 
         p_set = steel * 1e6 * nyears / nhours
+            suffix=" demand",
         n.add(
             "Load",
             spatial.steel.nodes,
@@ -6627,6 +6634,7 @@ def add_shipping(
             unit="MWh_LHV",
         )
 
+            suffix=" demand",
         n.add(
             "Load",
             nodes + " shipping",
@@ -6665,6 +6673,7 @@ def add_shipping(
                 unit="MWh_LHV",
             )
 
+                suffix=" demand",
             n.add(
                 "Load",
                 buses,
@@ -6673,6 +6682,7 @@ def add_shipping(
                 p_set=p_set_fuel,
             )
 
+                suffix=" conversion",
             n.add(
                 "Link",
                 buses,
