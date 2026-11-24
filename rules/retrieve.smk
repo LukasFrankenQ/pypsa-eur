@@ -226,10 +226,13 @@ if (GHG_EMISSIONS_ENC_DATASET := dataset_version("ghg_emissions_energy_community
 
     rule retrieve_ghg_emissions_energy_community:
         """Retrieves national greenhouse gas emissions of Energy Community Contracting Parties from the EEA."""
+        cache: "omit-storage-content"
         input:
             csv=storage(GHG_EMISSIONS_ENC_DATASET["url"]),
         output:
             csv=f"{GHG_EMISSIONS_ENC_DATASET['folder']}/UNFCCC_{GHG_EMISSIONS_ENC_DATASET['version']}.csv",
+        params:
+            version=GHG_EMISSIONS_ENC_DATASET["version"],
         retries: 2
         run:
             copy2(input["csv"], output["csv"])
@@ -241,10 +244,13 @@ if (DESNZ_GHG_EMISSIONS_DATASET := dataset_version("desnz_ghg_emissions"))[
 
     rule retrieve_desnz_ghg_emissions:
         """Retrieves greenhouse gas emissions of the United Kingdom from DESNZ."""
+        cache: "omit-storage-content"
         input:
             xlsx=storage(DESNZ_GHG_EMISSIONS_DATASET["url"]),
         output:
             xlsx=f"{DESNZ_GHG_EMISSIONS_DATASET['folder']}/final-greenhouse-gas-emissions-by-source.xlsx",
+        params:
+            version=DESNZ_GHG_EMISSIONS_DATASET["version"],
         retries: 2
         run:
             copy2(input["xlsx"], output["xlsx"])
@@ -256,14 +262,13 @@ if (EEA_GHG_INVENTORY := dataset_version("eea_ghg_inventory"))["source"] in [
 ]:
 
     rule retrieve_eea_ghg_inventory:
+        """Retrieves the latest EEA greenhouse gas inventory."""
         cache: "omit-storage-content"
         input:
             zip=storage(EEA_GHG_INVENTORY["url"]),
         output:
             csv=f"{EEA_GHG_INVENTORY['folder']}/UNFCCC_{EEA_GHG_INVENTORY['version']}.csv",
         retries: 2
-        message:
-            "Retrieving the latest EEA greenhouse gas inventory"
         params:
             version=EEA_GHG_INVENTORY["version"],
         run:
@@ -768,8 +773,6 @@ if (ENERGY_ATLAS_DATASET := dataset_version("jrc_energy_atlas"))["source"] in [
             tif=storage(ENERGY_ATLAS_DATASET["url"]),
         output:
             tif=f"{ENERGY_ATLAS_DATASET['folder']}/electricity_tot_demand_2019.tif",
-        message:
-            "Retrieving JRC Energy Atlas electricity demand data raster"
         params:
             version=ENERGY_ATLAS_DATASET["version"],
         run:
@@ -777,7 +780,8 @@ if (ENERGY_ATLAS_DATASET := dataset_version("jrc_energy_atlas"))["source"] in [
 
 elif ENERGY_ATLAS_DATASET["source"] in ["primary"]:
 
-    rule retrieve_electricity_demand_energy_atlas:
+    rule retrieve_jrc_energy_atlas:
+        """Downloads the JRC Energy Atlas raster of annual electricity demand."""
         output:
             tif=f"{ENERGY_ATLAS_DATASET['folder']}/electricity_tot_demand_2019.tif",
         run:
@@ -797,13 +801,12 @@ if (
 )["source"] in ["archive"]:
 
     rule retrieve_desnz_electricity_consumption:
+        """Retrieves DESNZ subnational electricity consumption data."""
         cache: "omit-storage-content"
         input:
             xlsx=storage(DESNZ_ELECTRICITY_CONSUMPTION_DATASET["url"]),
         output:
             xlsx=f"{DESNZ_ELECTRICITY_CONSUMPTION_DATASET['folder']}/Subnational_electricity_consumption_statistics_2005-2024.xlsx",
-        message:
-            "Retrieving DESNZ subnational electricity consumption data"
         params:
             version=DESNZ_ELECTRICITY_CONSUMPTION_DATASET["version"],
         run:
@@ -955,6 +958,7 @@ if (EUTL_DATA_PACKAGE := dataset_version("eutl_data_package"))["source"] in [
 ]:
 
     rule retrieve_eutl_data_package:
+        """Retrieves the EU ETS data package (EUTL)."""
         cache: "omit-storage-content"
         input:
             zip=storage(EUTL_DATA_PACKAGE["url"]),
@@ -964,8 +968,6 @@ if (EUTL_DATA_PACKAGE := dataset_version("eutl_data_package"))["source"] in [
                 for table in EUTL_TABLES
             },
         retries: 2
-        message:
-            "Retrieving the EU ETS data package (EUTL)"
         params:
             version=EUTL_DATA_PACKAGE["version"],
         run:
@@ -983,14 +985,13 @@ if (NAEI_POINT_SOURCES := dataset_version("naei_point_sources"))["source"] in [
 ]:
 
     rule retrieve_naei_point_sources:
+        """Retrieves the NAEI point sources."""
         cache: "omit-storage-content"
         input:
             xlsx=storage(NAEI_POINT_SOURCES["url"]),
         output:
             xlsx=f"{NAEI_POINT_SOURCES['folder']}/NAEIPointsSources.xlsx",
         retries: 2
-        message:
-            "Retrieving the NAEI point sources"
         params:
             version=NAEI_POINT_SOURCES["version"],
         run:
@@ -1003,12 +1004,11 @@ if (SODIR_FACILITIES := dataset_version("sodir_facilities"))["source"] in [
 ]:
 
     rule retrieve_sodir_facilities:
+        """Retrieves the Norwegian Offshore Directorate facilities."""
         cache: "omit-storage-content"
         output:
             geojson=f"{SODIR_FACILITIES['folder']}/facilities.geojson",
         retries: 2
-        message:
-            "Retrieving the Norwegian Offshore Directorate facilities"
         params:
             version=SODIR_FACILITIES["version"],
             url=SODIR_FACILITIES["url"],
@@ -1256,10 +1256,13 @@ if (GEM_GCT_DATASET := dataset_version("gem_gct"))["source"] in [
 
     rule retrieve_gem_gct:
         """Retrieves the Global Energy Monitor Global Chemicals Tracker."""
+        cache: "omit-storage-content"
         input:
             xlsx=storage(GEM_GCT_DATASET["url"]),
         output:
             xlsx=f"{GEM_GCT_DATASET['folder']}/Global-Chemicals-Tracker.xlsx",
+        params:
+            version=GEM_GCT_DATASET["version"],
         run:
             copy2(input["xlsx"], output["xlsx"])
 
@@ -1715,6 +1718,7 @@ if (LIMBERGER_TEMPERATURE_DATASET := dataset_version("limberger_temperature"))[
 ] in ["primary", "archive"]:
 
     rule retrieve_limberger_temperature:
+        """Retrieves the Limberger et al. 3-D subsurface temperature model of Europe."""
         cache: "omit-storage-content"
         input:
             voxel=storage(LIMBERGER_TEMPERATURE_DATASET["url"]),
@@ -1724,8 +1728,6 @@ if (LIMBERGER_TEMPERATURE_DATASET := dataset_version("limberger_temperature"))[
             "logs/retrieve_limberger_temperature.log",
         retries: 2
         threads: 1
-        message:
-            "Retrieving the Limberger et al. 3-D subsurface temperature model of Europe"
         params:
             version=LIMBERGER_TEMPERATURE_DATASET["version"],
         run:
@@ -1989,11 +1991,14 @@ if (CO2_REMOVAL_DATASET := dataset_version("co2_removal_data"))["source"] in [
 
     rule retrieve_co2_removal_data:
         """Retrieves and unpacks the input data for carbon dioxide removal technologies from Zenodo."""
+        cache: "omit-storage-content"
         input:
             zip=storage(CO2_REMOVAL_DATASET["url"]),
         output:
             afforestation_rates=f"{CO2_REMOVAL_DATASET['folder']}/afforestation_rates_nuts2_full.csv",
             unsustainable_biomass_upstream=f"{CO2_REMOVAL_DATASET['folder']}/unsustainable_biomass_upstream.csv",
+        params:
+            version=CO2_REMOVAL_DATASET["version"],
         log:
             "logs/retrieve_co2_removal_data.log",
         retries: 2

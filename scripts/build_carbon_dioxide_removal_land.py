@@ -44,6 +44,6 @@ if __name__ == "__main__":
     land *= config["max_land_usage"]
 
     logger.info(
-        f"Usable land for {snakemake.wildcards.technology}: {land.sum():.0f} sqkm"
+        f"Usable land for {snakemake.params.technology_name}: {land.sum():.0f} sqkm"
     )
     land.rename_axis("name").rename("area").to_csv(snakemake.output[0])

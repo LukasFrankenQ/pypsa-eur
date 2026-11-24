@@ -123,15 +123,15 @@ rule cluster_gas_network:
 
 rule build_transmission_topology:
     """Builds candidate corridors for H2, CO2 and biomass transport from the Delaunay graph of regions."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/build_transmission_topology.py"),
         network=resources("networks/clustered.nc"),
         offshore_shapes=resources("offshore_shapes.geojson"),
     output:
         candidates=resources("transmission_candidates.geojson"),
     log:
         logs("build_transmission_topology.log"),
-    benchmark:
-        benchmarks("build_transmission_topology")
     resources:
         mem_mb=2000,
     params:
@@ -1020,7 +1020,9 @@ rule build_biomass_potentials:
 
 rule determine_carbon_dioxide_removal_availability_matrix:
     """Computes the share of each cutout grid cell available to a land-based carbon dioxide removal option."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/determine_availability_matrix.py"),
         corine=ancient(rules.retrieve_corine.output["tif_file"]),
         natura=lambda w: (
             f"{NATURA_DATASET['folder']}/natura.tiff"
@@ -1039,14 +1041,13 @@ rule determine_carbon_dioxide_removal_availability_matrix:
         ),
     log:
         logs("determine_carbon_dioxide_removal_availability_matrix_{technology}.log"),
-    benchmark:
-        benchmarks("determine_carbon_dioxide_removal_availability_matrix_{technology}")
     wildcard_constraints:
         technology="rock_weathering|biochar|afforestation",
     threads: atlite_threads
     resources:
         mem_mb=atlite_mem_mb(5000),
     params:
+        technology_name="{technology}",
         technology=lambda w: config_provider("sector", w.technology)(w),
         plot_availability_matrix=config_provider("atlite", "plot_availability_matrix"),
         disable_progressbar=config_provider("run", "disable_progressbar"),
@@ -1057,7 +1058,11 @@ rule determine_carbon_dioxide_removal_availability_matrix:
 
 rule build_carbon_dioxide_removal_land:
     """Builds the land area usable for a land-based carbon dioxide removal option per region."""
+    cache: True
     input:
+        code_dependencies=code_dependencies(
+            "scripts/build_carbon_dioxide_removal_land.py",
+        ),
         availability_matrix=resources(
             "carbon_dioxide_removal_availability_matrix_{technology}.nc"
         ),
@@ -1066,13 +1071,12 @@ rule build_carbon_dioxide_removal_land:
         resources("carbon_dioxide_removal_land_{technology}.csv"),
     log:
         logs("build_carbon_dioxide_removal_land_{technology}.log"),
-    benchmark:
-        benchmarks("build_carbon_dioxide_removal_land_{technology}")
     wildcard_constraints:
         technology="rock_weathering|biochar|afforestation",
     resources:
         mem_mb=8000,
     params:
+        technology_name="{technology}",
         technology=lambda w: config_provider("sector", w.technology)(w),
     script:
         scripts("build_carbon_dioxide_removal_land.py")
@@ -1080,7 +1084,11 @@ rule build_carbon_dioxide_removal_land:
 
 rule build_afforestation_potentials:
     """Builds the afforestation potential, sequestration rate and rotation age per region."""
+    cache: True
     input:
+        code_dependencies=code_dependencies(
+            "scripts/build_afforestation_potentials.py",
+        ),
         land=resources("carbon_dioxide_removal_land_afforestation.csv"),
         rates=rules.retrieve_co2_removal_data.output.afforestation_rates,
         nuts2=rules.retrieve_eu_nuts2013.output["shapes_level_2"],
@@ -1089,8 +1097,6 @@ rule build_afforestation_potentials:
         resources("afforestation_potentials.csv"),
     log:
         logs("build_afforestation_potentials.log"),
-    benchmark:
-        benchmarks("build_afforestation_potentials")
     resources:
         mem_mb=5000,
     script:
@@ -1243,7 +1249,11 @@ rule build_industry_sector_ratios:
 
 rule build_industry_sector_ratios_endogenous:
     """Builds industry energy demand ratios with process heat split into temperature bands."""
+    cache: True
     input:
+        code_dependencies=code_dependencies(
+            "scripts/build_industry_sector_ratios_endogenous.py",
+        ),
         industrial_energy_demand_per_country_today=resources(
             "industrial_energy_demand_per_country_today.csv"
         ),
@@ -1257,8 +1267,6 @@ rule build_industry_sector_ratios_endogenous:
         ),
     log:
         logs("build_industry_sector_ratios_endogenous.log"),
-    benchmark:
-        benchmarks("build_industry_sector_ratios_endogenous")
     threads: 1
     resources:
         mem_mb=1000,
@@ -1429,6 +1437,7 @@ rule build_industrial_production_per_node:
 
 
 rule build_industrial_sites:
+    """Locates industrial sites and their CO2 emissions."""
     cache: True
     input:
         code_dependencies=code_dependencies("scripts/build_industrial_sites.py"),
@@ -1437,7 +1446,6 @@ rule build_industrial_sites:
         eutl_locations=rules.retrieve_eutl_data_package.output[
             "installation_locations"
         ],
-    """Locates industrial sites and their CO2 emissions."""
         eutl_nace=rules.retrieve_eutl_data_package.output["nace_mappings"],
         eutl_plant_links=rules.retrieve_eutl_data_package.output[
             "map_installation_to_plant"
@@ -1492,7 +1500,12 @@ rule build_industrial_energy_demand_per_node:
 
 rule build_industrial_electricity_profiles:
     """Builds hourly industrial electricity demand profiles per region from FfE load profiles."""
+    cache: True
     input:
+        code_dependencies=code_dependencies(
+            "scripts/build_industrial_electricity_profiles.py",
+            "scripts/build_industrial_energy_demand_per_node.py",
+        ),
         industry_sector_ratios=resources("industry_sector_ratios_{horizon}.csv"),
         industrial_production_per_node=resources("industrial_production_{horizon}.csv"),
         ffe_profiles=rules.retrieve_ffe_industry_load_profiles.output["json"],
@@ -1502,12 +1515,11 @@ rule build_industrial_electricity_profiles:
         ),
     log:
         logs("build_industrial_electricity_profiles_{horizon}.log"),
-    benchmark:
-        (benchmarks("build_industrial_electricity_profiles_{horizon}"))
     threads: 1
     resources:
         mem_mb=1000,
     params:
+        horizon="{horizon}",
         snapshots=config_provider("snapshots"),
         drop_leap_day=config_provider("enable", "drop_leap_day"),
         endogenous_sectors=config_provider("sector", "endogenous_sectors"),
@@ -1886,7 +1898,9 @@ def input_heat_source_power(w):
 
 rule build_industry_plants:
     """Builds existing cement, steel, ammonia and methanol plant capacities per model region."""
+    cache: True
     input:
+        code_dependencies=code_dependencies("scripts/build_industry_plants.py"),
         regions_onshore=resources("onshore_regions.geojson"),
         gem_gct=rules.retrieve_gem_gct.output["xlsx"],
         gem_gspt=rules.retrieve_gem_gspt.output["xlsx"],
@@ -1896,8 +1910,6 @@ rule build_industry_plants:
         industry_plants=resources("industry_plants.csv"),
     log:
         logs("build_industry_plants.log"),
-    benchmark:
-        benchmarks("build_industry_plants")
     threads: 1
     resources:
         mem_mb=2000,
