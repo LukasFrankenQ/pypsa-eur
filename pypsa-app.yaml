@@ -2,13 +2,14 @@
 # pull: what a run on a remote backend brings back to the hub.
 # keep: trees the cluster owns, which a push never deletes from the mirror.
 pull:
-  - /results/**
-  - /logs/**
-  - /resources/onshore_regions.geojson
-  - /resources/**cell_capacity_factor_*.nc
+- /results/**
+- /logs/**
+- /resources/onshore_regions.geojson
+- /resources/**cell_capacity_factor_*.nc
+- /resources/**availability_raster_*.tif
 keep:
-  - /data/
-  - /resources/
-  - /benchmarks/
-  - /cutouts/
-  - /.snakemake/
+- /data/
+- /resources/
+- /benchmarks/
+- /cutouts/
+- /.snakemake/
