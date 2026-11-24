@@ -1,0 +1,2 @@
+country,year,carrier_or_metric,value,unit,source_id,note
+ES_peninsular,2024,coal_floor,243.0,MW,omie_programas_pdbf_pdvd,Output at which the system operator most often schedules Aboño 2 in the program after constraints (PDVD) of 2024: 3588 of the 7566 hours it is scheduled (of 8784 hours); its minimum stable output. Derived with scripts/retrieve_coal_floor.py.

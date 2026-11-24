@@ -1,0 +1,253 @@
+# SPDX-FileCopyrightText: 2026 Iegor Riepin
+#
+# SPDX-License-Identifier: MIT
+
+"""Snakemake workflow for the Spanish electricity price back-cast.
+
+``build_upstream`` runs the PyPSA-Eur network build inside the ``pypsa-eur/``
+submodule with ``--configfile ../config/config.spain.yaml``; the other rules take
+over from its composed network: prepare (patch engine), solve (dispatch), validate
+against published actuals, plot.
+"""
+
+
+configfile: "pypsa-eur/config/config.default.yaml"
+configfile: "config/config.spain.yaml"
+
+
+HORIZON = config["planning_horizons"][0]
+RUN = config["run"]["name"]
+YEAR = int(config["snapshots"]["start"][:4])
+VARIANTS = list(config["backcast"]["variants"])
+# carriers of the capacity-factor panels of scripts/plot_validation.py (its CF_CMAPS)
+CF_CARRIERS = ("solar", "solar-hsat", "onwind")
+
+
+rule all:
+    """2024 back-cast: validation reports of every variant and the price comparison."""
+    default_target: True
+    input:
+        expand("results/validation/validation_{variant}.csv", variant=VARIANTS),
+        "results/validation/validation_report.png",
+        "results/validation/price_backcast_patched.pdf",
+        "results/validation/price_backcast_patched.png",
+
+
+rule build_upstream:
+    """Builds the composed network and processed costs inside the pypsa-eur submodule."""
+    output:
+        network=f"pypsa-eur/resources/{{run}}/networks/composed_{HORIZON}.nc",
+        costs=f"pypsa-eur/resources/{{run}}/costs_{HORIZON}_processed.csv",
+    threads: workflow.cores
+    params:
+        horizon=HORIZON,
+    shell:
+        """
+        cd pypsa-eur && snakemake \
+            resources/{wildcards.run}/networks/composed_{params.horizon}.nc \
+            resources/{wildcards.run}/costs_{params.horizon}_processed.csv \
+            -j {threads} --configfile ../config/config.spain.yaml
+        """
+
+
+rule upstream_map_inputs:
+    """Upstream build files the validation maps read, built on the way to the composed network."""
+    input:
+        ancient(f"pypsa-eur/resources/{RUN}/networks/composed_{HORIZON}.nc"),
+    output:
+        base_network=f"pypsa-eur/resources/{RUN}/networks/base.nc",
+        powerplants=f"pypsa-eur/resources/{RUN}/powerplants.csv",
+        regions=f"pypsa-eur/resources/{RUN}/onshore_regions.geojson",
+        class_regions=expand(
+            f"pypsa-eur/resources/{RUN}/regions_by_class_{{carrier}}.geojson",
+            carrier=CF_CARRIERS,
+        ),
+    threads: 1
+    params:
+        targets=lambda w, output: [f.removeprefix("pypsa-eur/") for f in output],
+    shell:
+        """
+        cd pypsa-eur && snakemake {params.targets} \
+            -j {threads} --configfile ../config/config.spain.yaml
+        """
+
+
+def resolved_patches(wildcards):
+    """Return the enabled patch names for a variant (config defaults + variant overrides)."""
+    cfg = config["backcast"]
+    if wildcards.variant not in cfg["variants"]:
+        raise ValueError(f"Unknown variant '{wildcards.variant}'.")
+    patches = dict(cfg["patches"])
+    patches.update(cfg["variants"][wildcards.variant] or {})
+    return ",".join(name for name, on in patches.items() if on)
+
+
+wildcard_constraints:
+    run=RUN,
+    variant="|".join(VARIANTS),
+
+
+rule prepare_network:
+    """Applies the cited patches of a variant to the composed network and freezes the fleet."""
+    input:
+        code=["scripts/prepare_network.py"],
+        network=f"pypsa-eur/resources/{RUN}/networks/composed_{HORIZON}.nc",
+        costs=f"pypsa-eur/resources/{RUN}/costs_{HORIZON}_processed.csv",
+        unit_commitment="pypsa-eur/data/unit_commitment.csv",
+        boundary_flows="data/custom/fr_boundary_flows_2024.csv",
+        custom_data=[
+            "data/custom/national_capacities.csv",
+            "data/custom/prices.csv",
+            "data/custom/ntc.csv",
+            "data/custom/annual_demand.csv",
+            "data/custom/validation_2024_es.csv",
+            "data/custom/pt_actuals.csv",
+            "data/custom/pt_cogeneration_monthly_2024.csv",
+            "data/custom/fr_actuals.csv",
+            "data/custom/solar_tracking.csv",
+            "data/custom/fr_nuclear_monthly_2024.csv",
+            "data/custom/daily_fuel_prices_2024.csv",
+            "data/custom/omip_week_ahead_2024.csv",
+            "data/custom/omip_day_contract_2024.csv",
+            "data/custom/generation_hourly_2024.csv",
+            "data/custom/es_unit_outages_2024.csv",
+            "data/custom/reservoir_levels_weekly.csv",
+            "data/custom/security_gas_floor.csv",
+            "data/custom/hydro_output_ceiling.csv",
+            "data/custom/coal_floor.csv",
+            "data/custom/sources/redata_2024_emisiones_co2_mensual.json",
+        ],
+    output:
+        network=f"resources/{RUN}/networks/base_{YEAR}_{{variant}}.nc",
+    threads: 1
+    resources:
+        mem_mb=8000,
+    params:
+        patches=resolved_patches,
+        year=YEAR,
+        water_value_contract=config["backcast"]["water_value_contract"],
+    shell:
+        """
+        PYTHONPATH="{workflow.basedir}" python -m scripts.prepare_network \
+            --network "{input.network}" \
+            --costs "{input.costs}" \
+            --unit-commitment "{input.unit_commitment}" \
+            --output "{output.network}" \
+            --patches "{params.patches}" \
+            --boundary-flows "{input.boundary_flows}" \
+            --data-year "{params.year}" \
+            --water-value-contract "{params.water_value_contract}"
+        """
+
+
+rule solve_network:
+    """Solves the dispatch of a base network; its nodal prices are the model prices."""
+    input:
+        code=["scripts/solve_network.py"],
+        network=f"resources/{RUN}/networks/base_{YEAR}_{{variant}}.nc",
+    output:
+        network=f"results/{RUN}/networks/solved_{YEAR}_{{variant}}.nc",
+    threads: 2
+    resources:
+        mem_mb=12000,  # hourly solves peak at ~11 GB
+    params:
+        solver=config["backcast"]["solving"]["solver"],
+    shell:
+        """
+        PYTHONPATH="{workflow.basedir}" python -m scripts.solve_network \
+            --network "{input.network}" \
+            --output "{output.network}" \
+            --solver "{params.solver}" \
+            --threads {threads}
+        """
+
+
+rule validate_network:
+    """Compares the solved 2024 network with Redeia actuals in one report."""
+    input:
+        code=["scripts/validate_network.py"],
+        network=f"results/{RUN}/networks/solved_{YEAR}_{{variant}}.nc",
+        actuals="data/custom/validation_2024_es.csv",
+        capacities="data/custom/national_capacities.csv",
+    output:
+        report="results/validation/validation_{variant}.csv",
+        gates="results/validation/validation_{variant}.yaml",
+    threads: 1
+    resources:
+        mem_mb=4000,
+    shell:
+        """
+        PYTHONPATH="{workflow.basedir}" python -m scripts.validate_network \
+            --network "{input.network}" \
+            --actuals "{input.actuals}" \
+            --capacities "{input.capacities}" \
+            --output-report "{output.report}" \
+            --output-gates "{output.gates}"
+        """
+
+
+rule plot_validation:
+    """Plots the validation figure of the 2024 back-cast next to its reports."""
+    input:
+        code=["scripts/plot_validation.py", "scripts/prepare_network.py"],
+        base_network=f"pypsa-eur/resources/{RUN}/networks/base.nc",
+        powerplants=f"pypsa-eur/resources/{RUN}/powerplants.csv",
+        regions=f"pypsa-eur/resources/{RUN}/onshore_regions.geojson",
+        class_regions=expand(
+            f"pypsa-eur/resources/{RUN}/regions_by_class_{{carrier}}.geojson",
+            carrier=CF_CARRIERS,
+        ),
+        networks=expand(
+            f"resources/{RUN}/networks/base_{YEAR}_{{variant}}.nc",
+            variant=["raw", "patched"],
+        ),
+        reports=expand(
+            "results/validation/validation_{variant}.csv", variant=["raw", "patched"]
+        ),
+        capacities="data/custom/national_capacities.csv",
+        colors="pypsa-eur/config/plotting.default.yaml",
+        style="scripts/plots.mplstyle",
+    output:
+        "results/validation/validation_report.png",
+    threads: 1
+    resources:
+        mem_mb=4000,
+    shell:
+        """
+        PYTHONPATH="{workflow.basedir}" python -m scripts.plot_validation \
+            --base-network "{input.base_network}" \
+            --powerplants "{input.powerplants}" \
+            --regions "{input.regions}" \
+            --class-regions {input.class_regions} \
+            --networks {input.networks} \
+            --reports {input.reports} \
+            --capacities "{input.capacities}" \
+            --colors "{input.colors}" \
+            --output "{output}"
+        """
+
+
+rule plot_price_backcast:
+    """Scores and plots the modeled Spanish price of the 2024 back-cast against OMIE."""
+    input:
+        code=["scripts/plot_price_backcast.py", "scripts/validate_network.py"],
+        network=f"results/{RUN}/networks/solved_{YEAR}_{{variant}}.nc",
+        prices="data/custom/omie_day_ahead_2024.csv",
+        generation="data/custom/generation_hourly_2024.csv",
+        style="scripts/plots.mplstyle",
+    output:
+        figure="results/validation/price_backcast_{variant}.pdf",
+        figure_png="results/validation/price_backcast_{variant}.png",
+        scorecard="results/validation/price_scorecard_{variant}.csv",
+    threads: 1
+    resources:
+        mem_mb=4000,
+    shell:
+        """
+        PYTHONPATH="{workflow.basedir}" python -m scripts.plot_price_backcast \
+            --network "{input.network}" \
+            --prices "{input.prices}" \
+            --generation "{input.generation}" \
+            --output "{output.figure}" "{output.figure_png}" \
+            --output-scorecard "{output.scorecard}"
+        """

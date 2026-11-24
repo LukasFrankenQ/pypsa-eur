@@ -1,0 +1,123 @@
+country,year,carrier_or_metric,value,unit,source_id,note
+ES,2024,onwind,32092.429,MW,redeia_ise_2025_potencia_instalada,Spain National 2024 onshore wind (total wind 32128.429 MW minus ~36 MW offshore prototypes in Canary Islands/Biscay).
+ES,2024,offwind,36.000,MW,redeia_ise_2025_potencia_instalada,Spain National 2024 offshore wind prototypes (PLOCAN/ELISA Gran Canaria + DemoSATH/HarshLab BiMEP Biscay ~36 MW counted in Eolica).
+ES,2024,wind_total,32128.429,MW,redeia_ise_2025_potencia_instalada,Spain National 2024 total wind installed capacity reported by Redeia (32128.429 MW plus 11.320 MW Hidroeolica in El Hierro).
+ES,2024,solar PV,32838.789,MW,redeia_ise_2025_potencia_instalada,Spain National 2024 grid-connected utility-scale Solar Fotovoltaica (excludes 9492.252 MW behind-the-meter autoconsumo).
+ES,2024,solar PV (autoconsumo),9492.252,MW,redeia_ise_2025_potencia_autoconsumo,Spain National 2024 distributed behind-the-meter rooftop PV self-consumption (Autoconsumo fotovoltaico).
+ES,2024,solar PV (total incl. autoconsumo),42331.041,MW,redeia_ise_2025_potencia_instalada,Spain National 2024 total solar PV including utility-scale (32838.789 MW) and rooftop autoconsumo (9492.252 MW).
+ES,2024,CSP/solar thermal,2302.223,MW,redeia_ise_2025_potencia_instalada,"Spain National 2024 concentrated solar power (Solar termica 2302.223 MW, all on mainland)."
+ES,2024,nuclear,7117.290,MW,redeia_ise_2025_potencia_instalada,"Spain National 2024 nuclear net/installed capacity (7 reactors across 5 sites: Almaraz I-II, Asco I-II, Cofrentes, Trillo, Vandellos II)."
+ES,2024,CCGT,26250.145,MW,redeia_ise_2025_potencia_instalada,Spain National 2024 Ciclo Combinado capacity (24561.845 MW Peninsular + 822.900 MW Baleares + 865.400 MW Canarias).
+ES,2024,OCGT/gas turbines,1148.650,MW,redeia_ise_2025_potencia_instalada,Spain National 2024 Turbina de Gas capacity (603.100 MW Baleares + 520.750 MW Canarias + 13.300 MW Ceuta + 11.500 MW Melilla).
+ES,2024,coal,2061.175,MW,redeia_ise_2025_potencia_instalada,Spain National 2024 Carbon capacity (1819.975 MW Peninsular + 241.200 MW Alcudia Baleares).
+ES,2024,lignite,0.000,MW,redeia_ise_2025_potencia_instalada,All Spanish brown coal / lignite plants closed prior to 2024.
+ES,2024,oil/diesel/fuel,1259.260,MW,redeia_ise_2025_potencia_instalada,Spain National 2024 oil/diesel/fuel: Motor diesel (768.670 MW) + Turbina de Vapor oil/fuel (482.640 MW Canarias) + Fuel (7.950 MW Peninsular).
+ES,2024,cogeneration,5582.248,MW,redeia_ise_2025_potencia_instalada,Spain National 2024 Cogeneracion capacity (5532.525 MW Peninsular + 11.523 MW Baleares + 38.200 MW Canarias).
+ES,2024,biomass/waste,1709.319,MW,redeia_ise_2025_potencia_instalada,Spain National 2024 biomass/biogas/waste: Otras renovables (1113.544 MW) + Residuos renovables (170.112 MW) + Residuos no renovables (425.663 MW).
+ES,2024,hydro_conventional_redeia,17096.310,MW,redeia_ise_2025_potencia_instalada,Spain National 2024 Redeia Hidraulica category (17094.790 MW Peninsular + 1.520 MW Canarias; includes 2687.0 MW mixed PHS and ~2185.0 MW small/run-of-river hydro).
+ES,2024,run-of-river/small hydro,2185.000,MW,miteco_pniec_2023_2030,Spain 2024 run-of-river / small hydro (<10 MW minihidraulica / fluyente ~2185 MW inside Redeia Hidraulica; strict non-regulable <2 MW fluyente is ~1100 MW).
+ES,2024,reservoir hydro,12224.310,MW,redeia_ise_2025_potencia_instalada,Spain National 2024 conventional reservoir hydro (17096.310 MW Hidraulica minus 2687.000 MW mixed PHS minus 2185.000 MW run-of-river/small hydro; 14911.310 MW if mixed PHS is grouped with reservoir hydro).
+ES,2024,reservoir hydro (incl. mixed PHS),14911.310,MW,redeia_ise_2025_potencia_instalada,"quality: derived | ES 2024 conventional reservoir hydro including 2687.000 MW mixed PHS (12224.310 MW reservoir + 2687.000 MW mixed PHS = 14911.310 MW; Redeia Hidraulica minus 2185.000 MW run-of-river/small hydro, matching the study convention where only pure PHS 3331.4 MW is a separate PHS StorageUnit)."
+ES,2024,pumped hydro (pure),3331.400,MW,redeia_ise_2025_potencia_instalada,"Spain 2024 pure pumped hydro storage (Turbinacion bombeo / bombeo puro: La Muela I-II, Sallente, Moralets, Aguayo, Tajo de la Encantada, Bolarque II, etc.)."
+ES,2024,pumped hydro (mixed),2687.000,MW,miteco_pniec_2023_2030,"Spain 2024 mixed pumped hydro storage (Bombeo mixto: Villarino, Aldeadavila II, Gabriel y Galan, Guillena, etc.; reported inside Hidraulica by Redeia)."
+ES,2024,pumped hydro (total pure+mixed),6018.400,MW,miteco_pniec_2023_2030,Spain 2024 total pumped hydro turbine capacity: 3331.4 MW pure PHS + 2687.0 MW mixed PHS = 6018.4 MW (pumping load capacity ~5050 MW).
+ES,2024,batteries,25.652,MW,redeia_ise_2025_potencia_instalada,Spain National 2024 grid-scale BESS capacity reported by Redeia (24.452 MW Peninsular + 1.200 MW Baleares).
+ES_peninsular,2024,onwind,31474.762,MW,redeia_ise_2025_potencia_instalada,Spain Peninsular (ES1) 2024 onshore wind capacity (31476.762 MW total wind minus ~2 MW BiMEP offshore test site).
+ES_peninsular,2024,offwind,2.000,MW,redeia_ise_2025_potencia_instalada,Spain Peninsular (ES1) 2024 offshore wind prototype (BiMEP Armintza Biscay floating test site ~2 MW).
+ES_peninsular,2024,wind_total,31476.762,MW,redeia_ise_2025_potencia_instalada,Spain Peninsular (ES1) 2024 total Eolica capacity reported by Redeia.
+ES_peninsular,2024,solar PV,32187.117,MW,redeia_ise_2025_potencia_instalada,Spain Peninsular (ES1) 2024 grid-connected utility-scale Solar Fotovoltaica.
+ES_peninsular,2024,solar PV (autoconsumo),9185.861,MW,redeia_ise_2025_potencia_autoconsumo,Spain Peninsular (ES1) 2024 behind-the-meter rooftop PV self-consumption (sum of 15 mainland CCAA).
+ES_peninsular,2024,solar PV (total incl. autoconsumo),41372.978,MW,redeia_ise_2025_potencia_instalada,Spain Peninsular (ES1) 2024 total solar PV including utility-scale (32187.117 MW) and rooftop autoconsumo (9185.861 MW).
+ES_peninsular,2024,CSP/solar thermal,2302.223,MW,redeia_ise_2025_potencia_instalada,Spain Peninsular (ES1) 2024 Solar Termica (CSP) capacity.
+ES_peninsular,2024,nuclear,7117.290,MW,redeia_ise_2025_potencia_instalada,Spain Peninsular (ES1) 2024 Nuclear capacity.
+ES_peninsular,2024,CCGT,24561.845,MW,redeia_ise_2025_potencia_instalada,Spain Peninsular (ES1) 2024 Ciclo Combinado capacity.
+ES_peninsular,2024,OCGT/gas turbines,0.000,MW,redeia_ise_2025_potencia_instalada,Spain Peninsular (ES1) 2024 open-cycle gas / steam turbines (0 MW in 2024; 561.885 MW Turbina de Vapor added in 2025 from Abono II conversion).
+ES_peninsular,2024,coal,1819.975,MW,redeia_ise_2025_potencia_instalada,"Spain Peninsular (ES1) 2024 Carbon capacity (Abono, Soto de Ribera, Los Barrios, Puente Nuevo/Cercs residual)."
+ES_peninsular,2024,lignite,0.000,MW,redeia_ise_2025_potencia_instalada,Spain Peninsular (ES1) 2024 lignite capacity (0 MW).
+ES_peninsular,2024,oil/diesel/fuel,7.950,MW,redeia_ise_2025_potencia_instalada,Spain Peninsular (ES1) 2024 Fuel capacity (7.950 MW).
+ES_peninsular,2024,cogeneration,5532.525,MW,redeia_ise_2025_potencia_instalada,Spain Peninsular (ES1) 2024 Cogeneracion capacity.
+ES_peninsular,2024,biomass/waste,1617.469,MW,redeia_ise_2025_potencia_instalada,Spain Peninsular (ES1) 2024 biomass/waste: Otras renovables (1098.662 MW) + Residuos renovables (131.628 MW) + Residuos no renovables (387.179 MW).
+ES_peninsular,2024,hydro_conventional_redeia,17094.790,MW,redeia_ise_2025_potencia_instalada,Spain Peninsular (ES1) 2024 Redeia Hidraulica category (includes 2687.0 MW mixed PHS and 2185.0 MW run-of-river/small hydro).
+ES_peninsular,2024,run-of-river/small hydro,2185.000,MW,miteco_pniec_2023_2030,Spain Peninsular (ES1) 2024 run-of-river / small hydro (<10 MW minihidraulica / fluyente).
+ES_peninsular,2024,reservoir hydro,12222.790,MW,redeia_ise_2025_potencia_instalada,Spain Peninsular (ES1) 2024 conventional reservoir hydro (17094.790 MW minus 2687.000 MW mixed PHS minus 2185.000 MW RoR; 14909.790 MW if mixed PHS included).
+ES_peninsular,2024,reservoir hydro (incl. mixed PHS),14909.790,MW,redeia_ise_2025_potencia_instalada,"quality: derived | ES_peninsular 2024 conventional reservoir hydro including 2687.000 MW mixed PHS (12222.790 MW reservoir + 2687.000 MW mixed PHS = 14909.790 MW; Redeia Hidraulica minus 2185.000 MW run-of-river/small hydro, matching the study convention where only pure PHS 3331.4 MW is a separate PHS StorageUnit)."
+ES_peninsular,2024,pumped hydro (pure),3331.400,MW,redeia_ise_2025_potencia_instalada,Spain Peninsular (ES1) 2024 Turbinacion bombeo (pure PHS).
+ES_peninsular,2024,pumped hydro (mixed),2687.000,MW,miteco_pniec_2023_2030,Spain Peninsular (ES1) 2024 Bombeo mixto (mixed PHS included in Redeia Hidraulica).
+ES_peninsular,2024,pumped hydro (total pure+mixed),6018.400,MW,miteco_pniec_2023_2030,Spain Peninsular (ES1) 2024 total PHS turbine capacity (3331.4 MW pure + 2687.0 MW mixed).
+ES_peninsular,2024,pumped hydro pure energy,120.000,GWh,huclin_2024_cajamar_almacenamiento,"quality: sourced | ES_peninsular 2024 closed-loop pure PHS (CLPSH / bombeo puro) storage energy capacity from Huclin 2024 & Chaves, Huclin & Ramos 2025 (IIT Comillas, Mediterraneo Economico 39, Table 3 p.72 & p.77: 120.0 GWh, ~34.6-36.0h at 3331.4-3465 MW). See also JRC plant-level head-pond sum (59.470 GWh direct / 74.430 GWh derived)."
+ES_peninsular,2024,pumped hydro pure energy (JRC head-ponds),59.470,GWh,jrc_hydro_power_database,"quality: sourced | ES_peninsular 2024 pure PHS upper head-pond storage energy directly reported in JRC Hydro-power database (La Muela 24.50 GWh + Moralets 27.00 GWh + Aguayo 3.70 GWh + Estany Gento-Sallente 3.27 GWh + Tajo de la Encantada 1.00 GWh = 59.470 GWh [17.85h at 3331.4 MW]; rises to 74.430 GWh [22.34h, quality: derived] when adding Bolarque II 4.10 GWh + Ibon de Ip 10.86 GWh from JRC volume and head)."
+ES_peninsular,2024,pumped hydro mixed energy,6208.000,GWh,huclin_2024_cajamar_almacenamiento,"quality: sourced | ES_peninsular 2024 open-loop mixed PHS (OLPSH / bombeo mixto) seasonal cascade reservoir storage energy from Huclin 2024 Table 3 p.72 (6208.0 GWh; JRC Hydro-power database reports 3897.120 GWh across Villarino/Almendra 3120 GWh, Valdecanas 664 GWh, Pintado 77 GWh, Aldeadavila 35 GWh, Guillena 1.12 GWh, which caused the ~4000 GWh JRC storage-energy artifact). Modeled inside reservoir hydro."
+ES_peninsular,2024,pumped hydro (pure) pumping,3306.000,MW,jrc_hydro_power_database,quality: sourced | ES_peninsular 2024 pure PHS pumping capacity from JRC Hydro-power database plant sum (La Muela I-II 1390 MW + Tajo Encantada 420 MW + Sallente 400 MW + Aguayo 360 MW + Moralets 219 MW + Bolarque II 208 MW + Tanes 110 MW + Montamara 100 MW + Ip 99 MW = 3306.0 MW; Huclin 2024 Table 3 p.72 reports 3552.0 MW CLPSH pumping).
+ES_peninsular,2024,pumped hydro round-trip efficiency,0.750,per_unit,huclin_2024_cajamar_almacenamiento,"quality: sourced | ES_peninsular 2024 pure PHS (CLPSH) and mixed PHS (OLPSH) round-trip cycle efficiency = 0.750 (75.0%, i.e. 0.866 one-way turbine/pumping efficiency) from Huclin 2024 / Chaves, Huclin & Ramos 2025 Table 3 p.72 and Funcas 2026."
+ES_peninsular,2024,batteries,24.452,MW,redeia_ise_2025_potencia_instalada,Spain Peninsular (ES1) 2024 grid-connected BESS capacity.
+ES_baleares,2024,onwind,3.558,MW,redeia_ise_2025_potencia_instalada,Spain Balearic Islands (ES4) 2024 onshore wind (Es Milà Menorca).
+ES_baleares,2024,offwind,0.000,MW,redeia_ise_2025_potencia_instalada,Spain Balearic Islands (ES4) 2024 offshore wind (0 MW).
+ES_baleares,2024,wind_total,3.558,MW,redeia_ise_2025_potencia_instalada,Spain Balearic Islands (ES4) 2024 total wind capacity.
+ES_baleares,2024,solar PV,350.618,MW,redeia_ise_2025_potencia_instalada,Spain Balearic Islands (ES4) 2024 grid-connected utility-scale Solar Fotovoltaica.
+ES_baleares,2024,solar PV (autoconsumo),164.710,MW,redeia_ise_2025_potencia_autoconsumo,Spain Balearic Islands (ES4) 2024 behind-the-meter rooftop PV self-consumption.
+ES_baleares,2024,solar PV (total incl. autoconsumo),515.328,MW,redeia_ise_2025_potencia_instalada,Spain Balearic Islands (ES4) 2024 total solar PV including utility-scale (350.618 MW) and rooftop autoconsumo (164.710 MW).
+ES_baleares,2024,CSP/solar thermal,0.000,MW,redeia_ise_2025_potencia_instalada,Spain Balearic Islands (ES4) 2024 CSP capacity (0 MW).
+ES_baleares,2024,nuclear,0.000,MW,redeia_ise_2025_potencia_instalada,Spain Balearic Islands (ES4) 2024 nuclear capacity (0 MW).
+ES_baleares,2024,CCGT,822.900,MW,redeia_ise_2025_potencia_instalada,"Spain Balearic Islands (ES4) 2024 Ciclo Combinado capacity (Son Reus, Cas Tresorer, Ibiza)."
+ES_baleares,2024,OCGT/gas turbines,603.100,MW,redeia_ise_2025_potencia_instalada,Spain Balearic Islands (ES4) 2024 Turbina de Gas capacity.
+ES_baleares,2024,coal,241.200,MW,redeia_ise_2025_potencia_instalada,Spain Balearic Islands (ES4) 2024 Carbon capacity (Es Murterar / Alcudia II Units 3-4).
+ES_baleares,2024,lignite,0.000,MW,redeia_ise_2025_potencia_instalada,Spain Balearic Islands (ES4) 2024 lignite capacity (0 MW).
+ES_baleares,2024,oil/diesel/fuel,139.400,MW,redeia_ise_2025_potencia_instalada,"Spain Balearic Islands (ES4) 2024 Motor diesel capacity (Mahon, Ibiza, Formentera)."
+ES_baleares,2024,cogeneration,11.523,MW,redeia_ise_2025_potencia_instalada,Spain Balearic Islands (ES4) 2024 Cogeneracion capacity.
+ES_baleares,2024,biomass/waste,80.876,MW,redeia_ise_2025_potencia_instalada,Spain Balearic Islands (ES4) 2024 biomass/waste: Otras renovables (6.076 MW) + Residuos renovables (37.400 MW) + Residuos no renovables (37.400 MW).
+ES_baleares,2024,run-of-river/small hydro,0.000,MW,redeia_ise_2025_potencia_instalada,Spain Balearic Islands (ES4) 2024 RoR hydro (0 MW).
+ES_baleares,2024,reservoir hydro,0.000,MW,redeia_ise_2025_potencia_instalada,Spain Balearic Islands (ES4) 2024 reservoir hydro (0 MW).
+ES_baleares,2024,pumped hydro (total pure+mixed),0.000,MW,redeia_ise_2025_potencia_instalada,Spain Balearic Islands (ES4) 2024 PHS capacity (0 MW).
+ES_baleares,2024,batteries,1.200,MW,redeia_ise_2025_potencia_instalada,Spain Balearic Islands (ES4) 2024 grid-connected BESS capacity.
+PT,2024,onwind,5650.000,MW,ren_dados_tecnicos_2024,Portugal 2024 onshore wind installed capacity (REN Dados Tecnicos 2024: 5675 MW total wind minus 25 MW WindFloat Atlantic offshore).
+PT,2024,offwind,25.000,MW,ren_dados_tecnicos_2024,Portugal 2024 offshore wind installed capacity (WindFloat Atlantic Viana do Castelo 25 MW).
+PT,2024,solar PV,3883.000,MW,ren_datahub_balanco_mensal,"Portugal year-end 2024 grid-connected solar PV capacity applied to the model (REN Data Hub, Balanço Mensal, December 2024, Potência Instalada: Solar 3 883 MW): the fleet behind REN's solar output (4 908 GWh) and grid consumption, self-consumption excluded as for Spain."
+PT,2024,solar PV (total incl. autoconsumo),5130.000,MW,ren_dados_tecnicos_2024,Portugal 2024 total solar PV installed capacity (REN / DGEG end-2024: ~3750 MW utility-scale + ~1380 MW UPAC self-consumption).
+PT,2024,CSP/solar thermal,0.000,MW,ren_dados_tecnicos_2024,Portugal 2024 CSP capacity (0 MW).
+PT,2024,nuclear,0.000,MW,ren_dados_tecnicos_2024,Portugal 2024 nuclear capacity (0 MW).
+PT,2024,CCGT,2839.000,MW,erse_tep_gas_2025_2026,"Portugal 2024 market-dispatched CCGT capacity: 3829 MW installed (Ribatejo, Lares, Pego CCGT, Tapada do Outeiro; REN Dados Tecnicos) minus Tapada do Outeiro 990 MW, which ended its CAE in Q1 2024 and is held in security-of-supply reserve outside the market until 2026-03-31 (ERSE TEP gas 2025-26, sec. 0.2.1)."
+PT,2024,OCGT/gas turbines,0.000,MW,ren_dados_tecnicos_2024,Portugal 2024 standalone mainland OCGT capacity (0 MW).
+PT,2024,coal,0.000,MW,ren_dados_tecnicos_2024,Portugal coal phase-out completed in Nov 2021 (Sines and Pego coal closed; 0 MW).
+PT,2024,lignite,0.000,MW,ren_dados_tecnicos_2024,Portugal 2024 lignite capacity (0 MW).
+PT,2024,oil/diesel/fuel,0.000,MW,ren_dados_tecnicos_2024,Portugal mainland 2024 oil/diesel grid plant capacity (0 MW; island diesel excluded).
+PT,2024,cogeneration,640.000,MW,ren_dados_tecnicos_2024,Portugal 2024 fossil/gas CHP cogeneration capacity (REN Dados Tecnicos 2024).
+PT,2024,biomass/waste,760.000,MW,ren_dados_tecnicos_2024,"Portugal 2024 biomass, pulp/paper bio-CHP, biogas, and municipal solid waste capacity (~760 MW)."
+PT,2024,run-of-river/small hydro,2920.000,MW,ren_dados_tecnicos_2024,Portugal 2024 run-of-river (fio de agua) and small hydro capacity (~2920 MW).
+PT,2024,reservoir hydro,1740.000,MW,ren_dados_tecnicos_2024,Portugal 2024 conventional reservoir hydro without pumping (~1740 MW; total hydro + PHS = 8192 MW).
+PT,2024,reservoir hydro energy,2813.000,GWh,ren_datahub_daily_balance,"Portugal reservoir hydro energy capacity: REN's reference storage capacity of all reservoirs, 3 266 GWh (stored GWh / % of maximum on the Data Hub daily balance, April-December 2024; 3 239 GWh January-March), minus the 453 GWh of pumped-storage energy held by the reversible units (pumped hydro storage energy row)."
+PT,2024,pumped hydro (total pure+mixed),3532.000,MW,ren_dados_tecnicos_2024,"Portugal 2024 reversible hydro / pumped storage capacity (Alqueva I-II, Venda Nova II-III, Aguieira, Baixo Sabor, Alto Lindoso, Gouvães/Tâmega: ~3532 MW)."
+PT,2024,pumped hydro pumping,3585.000,MW,ren_datahub_balanco_mensal,"quality: sourced | Portugal installed pumping capacity (Bombagem, December 2024: 3 585 MW; historic pumping peak 3 011 MW on 2024-04-14) from the REN Data Hub monthly electricity balance, table Potência Instalada."
+PT,2024,pumped hydro storage energy,453.380,GWh,jrc_hydro_power_database,"quality: sourced | Portugal pumped-storage energy capacity from the JRC Hydro-power database plant sum (Alto Lindoso 224.6 + Vilarinho das Furnas 137.9 + Aguieira 39.2 + Frades I 23.5 + Alto Rabagao 8.2 + Salamonde 7.5 + Alqueva 5.8 + Baixo Sabor 3.4 + Bemposta 2.3 + Torrao 1.0 GWh = 453.4 GWh). A lower bound: Venda Nova III, Foz Tua and Gouvaes report no storage. The upstream network holds 1 701 GWh."
+PT,2024,pumped hydro energy (diurnal/weekly),70.000,GWh,ren_dados_tecnicos_2024,"Portugal 2024 operational diurnal/weekly PHS storage energy capacity (including Gouvães/Tâmega 880 MW / 20 GWh + Venda Nova + Alqueva). Not applied: the model uses the JRC plant sum (pumped hydro storage energy, 453 GWh)."
+PT,2024,batteries,50.000,MW,ren_dados_tecnicos_2024,Portugal 2024 utility-scale battery storage capacity (~50 MW).
+FR,2024,onwind,23000.000,MW,rte_bilan_electrique_2025,"France 2024 onshore wind installed capacity (RTE Bilan electrique 2025 Principaux Resultats p.11: 23.9 GW end-2025 minus +0.9 GW in 2025 = 23.0 GW end-2024; RTE Bilan electrique 2024 gave 22.9 GW, revised here)."
+FR,2024,offwind,1477.000,MW,rte_bilan_electrique_2025,France 2024 offshore wind installed capacity (Saint-Nazaire 480 MW + Saint-Brieuc 496 MW + Fécamp 500 MW = 1477 MW; ~1.5 GW in RTE Bilan 2025 p.11).
+FR,2024,solar PV,24500.000,MW,rte_bilan_electrique_2025,France 2024 solar PV fleet applied to the model: the total including self-consumption (RTE consumption and solar output include self-consumed electricity).
+FR,2024,solar PV (total incl. autoconsumo),24500.000,MW,rte_bilan_electrique_2025,France 2024 solar PV installed capacity (RTE Bilan electrique 2025 Principaux Resultats p.11: 30.4 GW end-2025 minus +5.9 GW in 2025 = 24.5 GW end-2024).
+FR,2024,CSP/solar thermal,0.000,MW,rte_bilan_electrique_2025,France 2024 CSP capacity (0 MW).
+FR,2024,nuclear,61370.000,MW,rte_bilan_electrique_2025,France 2024 nuclear fleet net installed capacity (56 reactors = 61370 MW prior to Flamanville 3 commercial ramp-up; 61.4 GW in RTE Bilan 2025 p.11).
+FR,2024,gas_total,12600.000,MW,rte_bilan_electrique_2025,France 2024 total fossil gas capacity (RTE Bilan electrique 2025 p.11: 12.4 GW end-2025 vs 12.6 GW end-2024; comprises ~6.7 GW CCGT + ~1.5 GW OCGT/TAC + ~4.4 GW gas CHP).
+FR,2024,CCGT,6700.000,MW,rte_bilan_electrique_2025,"France 2024 natural gas CCGT (Cycles combines gaz: Bouchain, Landivisiau, Blénod, DK6, Pont-sur-Sambre, Toul, Fos/Cycofos, Bayet, etc. ~6.7 GW)."
+FR,2024,OCGT/gas turbines,1500.000,MW,rte_bilan_electrique_2025,France 2024 open-cycle gas turbines (Turbines a combustion gaz ~1.5 GW).
+FR,2024,cogeneration,4400.000,MW,rte_bilan_electrique_2025,France 2024 natural gas CHP cogeneration capacity (~4.4 GW included in 12.6 GW RTE Gaz total).
+FR,2024,coal,1810.000,MW,rte_bilan_electrique_2025,France 2024 hard coal capacity (Cordemais 4-5 1200 MW + Emile Huchet 6 610 MW = 1810 MW; 1.8 GW in RTE Bilan 2025 p.11).
+FR,2024,lignite,0.000,MW,rte_bilan_electrique_2025,France 2024 lignite capacity (0 MW).
+FR,2024,oil/diesel/fuel,3000.000,MW,rte_bilan_electrique_2025,France 2024 oil/fuel peaking capacity (Fioul TAC/vapeur: 3.0 GW in RTE Bilan 2025 p.11).
+FR,2024,biomass/waste,2300.000,MW,rte_bilan_electrique_2025,France 2024 bioenergy and renewable waste capacity (Thermique renouvelable et dechets: 2.3 GW in RTE Bilan 2025 p.11).
+FR,2024,hydro_total_rte,25700.000,MW,rte_bilan_electrique_2025,France 2024 total hydro capacity including STEP PHS and tidal (Hydraulique: 25.7 GW in RTE Bilan 2025 p.11).
+FR,2024,run-of-river/small hydro,10500.000,MW,rte_bilan_electrique_2025,France 2024 run-of-river hydro (Hydraulique au fil de l'eau + La Rance 240 MW tidal ~10.5 GW out of 25.7 GW total hydro).
+FR,2024,reservoir hydro,10100.000,MW,rte_bilan_electrique_2025,France 2024 reservoir and pondage hydro (Hydraulique de lac et d'eclusee ~10.1 GW out of 25.7 GW total hydro).
+FR,2024,reservoir hydro energy,3179.000,GWh,rte_pad_water_reserves,"France reservoir (lake) hydro energy capacity: the highest weekly stock RTE reports, 3 178.9 GWh in 2024 week 42 (RTE weekly stock hydraulique 2017-2026, lake-type plants; RTE publishes no capacity, so the observed maximum is a lower bound). Replaces the upstream 8.0 TWh."
+FR,2024,pumped hydro (total pure+mixed),5100.000,MW,rte_bilan_electrique_2025,"France 2024 STEP pumped hydro storage capacity (Grand'Maison 1820 MW, Montézic 910 MW, Revin 800 MW, Super-Bissorte, Cheylas, La Coche: ~5.1 GW turbine / ~4.3 GW pumping)."
+FR,2024,pumped hydro pumping,4300.000,MW,rte_bilan_electrique_2024,"France pumped-storage pumping capacity (RTE Bilan electrique 2024: '5,0 GW en turbinage et 4,3 GW en pompage'; the turbine capacity applied is the 5.1 GW of the Bilan 2025 row). Replaces the JRC plant sum of 3,513 MW, a lower bound (Revin missing)."
+FR,2024,pumped hydro energy (diurnal/weekly),100.000,GWh,rte_bilan_electrique_2025,France 2024 operational diurnal/weekly STEP storage energy capacity (~100 GWh / ~20h at 5.1 GW). Not applied: the model keeps PyPSA-Eur's 87 GWh.
+FR,2024,batteries,1000.000,MW,rte_bilan_electrique_2025,France 2024 utility-scale battery storage capacity (~1.0 GW end-2024).
+ES_peninsular,2023,onwind,30172.100,MW,redeia_ise_2025_potencia_instalada,Mainland (ES1) year-end 2023 wind capacity; used for 2024 average operating capacity
+ES_baleares,2023,onwind,3.568,MW,redeia_ise_2025_potencia_instalada,Balearic (ES4) year-end 2023 wind capacity
+ES_peninsular,2023,solar PV,25670.384,MW,redeia_ise_2025_potencia_instalada,Mainland (ES1) year-end 2023 grid-connected solar PV capacity; used for 2024 average operating capacity
+ES_baleares,2023,solar PV,340.673,MW,redeia_ise_2025_potencia_instalada,Balearic (ES4) year-end 2023 grid-connected solar PV capacity
+FR,2023,onwind,21800.000,MW,rte_bilan_electrique_2024,France year-end 2023 onshore wind capacity (RTE Bilan electrique 2024: 22.9 GW at end 2024 after +1.1 GW; the latest report that states the end of 2023); used for 2024 average operating capacity
+FR,2023,offwind,900.000,MW,rte_bilan_electrique_2024,France year-end 2023 offshore wind capacity (RTE Bilan electrique 2024: 1.5 GW at end 2024 after +0.6 GW); used for 2024 average operating capacity
+FR,2023,solar PV,19402.000,MW,odre_parc_prod_par_filiere,France year-end 2023 solar PV capacity (ODRE parc de production par filiere: parc_solaire); used for 2024 average operating capacity
+PT,2023,solar PV,2620.000,MW,ren_datahub_balanco_mensal,"Portugal year-end 2023 grid-connected solar PV capacity (REN Data Hub, Balanço Mensal, December 2023, Potência Instalada: Solar 2 620 MW); used for 2024 average operating capacity"
+ES_peninsular,2024,nuclear minimum output,0.600,per_unit,csn_pdt_cinu_gener_2404_45_1,"Spanish reactors run base load; market-driven load reductions go down to about 60-70% of power (CSN/PDT/CINU/GENER/2404/45.1, p. 3: 'con bajadas de hasta el entorno del 60% o 70%'); applied as the minimum output of the available fleet"

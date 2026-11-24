@@ -1,0 +1,8 @@
+country,year,carrier_or_metric,value,unit,source_id,note
+ES,2024,electricity_demand_busbar,249.000,TWh,redata_2024_demanda_evolucion,"Spain national busbar demand 2024 (248 999 649 MWh in REData and in Redeia ISE 2025). Includes the Canary Islands, Ceuta and Melilla (9.307 TWh), which the model leaves out."
+ES_peninsular,2024,electricity_demand_busbar,233.628,TWh,redata_2024_demanda_evolucion_peninsular,Spain mainland (Redeia ES1) busbar demand 2024 (233 628 202 MWh in REData and in Redeia ISE 2025).
+ES_baleares,2024,electricity_demand_busbar,6.064,TWh,redata_2024_demanda_evolucion_baleares,Spain Balearic Islands (Redeia ES4) busbar demand 2024 (6 063 947 MWh in REData and in Redeia ISE 2025).
+PT,2024,electricity_demand_busbar,51.400,TWh,ren_dados_tecnicos_2024,Portugal 2024 public grid electricity consumption (51390 GWh grid supply +2.1% YoY; 54.5 TWh including industrial self-consumption).
+PT,2024,electricity_demand_total_incl_autoconsumo,54.500,TWh,ren_dados_tecnicos_2024,Portugal 2024 total electricity demand including industrial and distributed self-consumption.
+FR,2024,electricity_demand_corrected,449.200,TWh,rte_bilan_electrique_2024,France 2024 weather-and-calendar corrected electricity consumption (RTE Bilan electrique 2024 & 2025).
+FR,2024,electricity_demand_gross,442.200,TWh,rte_bilan_electrique_2024,"France 2024 gross electricity consumption, not weather-corrected (RTE Bilan electrique 2024: 'La consommation brute d'electricite de l'annee 2024 s'est elevee a 442,2 TWh'; includes losses, Corsica and self-consumption, excludes pumping)."

@@ -1,0 +1,2 @@
+country,year,carrier_or_metric,value,unit,source_id,note
+ES_peninsular,2024,security_gas_floor,1060.0,MW,omie_programas_pdbf_pdvd,Mean gas output in the program after constraints (PDVD) in the 61% of hours of 2024 when the day-ahead program (PDBF) holds no Spanish combined-cycle unit; rounded to 10 MW. Derived with scripts/retrieve_security_gas_floor.py.

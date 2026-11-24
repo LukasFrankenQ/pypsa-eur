@@ -1,0 +1,4 @@
+country,year,carrier_or_metric,value,unit,source_id,note
+FR,2024,gen_onwind,42.8,TWh,rte_bilan_electrique_2024,"France 2024 onshore wind generation (RTE Bilan electrique 2024: 'etablie a 42,8 TWh'); target of the wind correction"
+FR,2024,gen_biomass_waste,10.5,TWh,rte_bilan_electrique_2024,"France 2024 bioenergy and waste generation (RTE Bilan electrique 2024: 'la production de la filiere s'est etablie a 10,5 TWh'); availability cap for biomass and waste"
+FR,2024,gen_hydro,68.28,TWh,rte_eco2mix_2024_hydro,France 2024 natural hydro output: run-of-river and pondage 47.88 + lakes 20.40 TWh (eCO2mix definitive data via ODRE; pumped-storage output excluded); target of the hydro inflow patch. Derived with scripts/retrieve_fr_hydro.py.

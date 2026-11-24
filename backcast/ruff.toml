@@ -1,0 +1,5 @@
+# SPDX-FileCopyrightText: 2026 Iegor Riepin
+#
+# SPDX-License-Identifier: MIT
+
+extend = "pypsa-eur/ruff.toml"

@@ -1,0 +1,177 @@
+# SPDX-FileCopyrightText: 2026 Iegor Riepin
+#
+# SPDX-License-Identifier: MIT
+
+# PyPSA-Eur v2026.09.0 overlay: ES/FR/PT electricity-only dispatch model for
+# the Spanish price back-cast. Scope: the 2024 system with a frozen fleet, no capacity
+# expansion. Temporal resolution: hourly.
+
+version: v2026.09.0
+tutorial: false
+
+run:
+  name: wy2024
+  scenarios:
+    enable: true
+    file: ../config/scenarios.yaml
+  disable_progressbar: true
+  shared_resources:
+    policy: false
+
+foresight: overnight
+
+planning_horizons:
+- 2025
+
+countries:
+- ES
+- FR
+- PT
+
+snapshots:
+  start: "2024-01-01"
+  end: "2025-01-01"
+  inclusive: left
+
+enable:
+  drop_leap_day: true
+
+co2_budget:
+  emissions_scope: CO2
+  relative: false
+  upper:
+  lower:
+
+electricity:
+  base_network: osm
+  transmission_limit: v1.0
+  renewable_carriers:
+  - solar
+  - solar-hsat
+  - onwind
+  - offwind-ac
+  - offwind-dc
+  - offwind-float
+  - hydro
+  extendable_carriers:
+    Generator: []
+    StorageUnit: []
+    Store: []
+    Link: []
+  estimate_renewable_capacities:
+    enable: true
+    from_powerplantmatching: true
+    from_irenastat: false
+    year: 2024
+
+atlite:
+  default_cutout: europe-2024-sarah3-era5
+  nprocesses: 4
+  show_progress: false
+
+renewable:
+  # 5 CF classes per region; existing plants are spatially joined to their class, so
+  # fleet profiles reflect where plants actually stand.
+  onwind:
+    resource_classes: 5
+  solar:
+    resource_classes: 5
+  solar-hsat:
+    resource_classes: 5
+
+clustering:
+  mode: busmap
+  cluster_network:
+    n_clusters: 15
+    algorithm: kmeans
+  # ES receives the remainder (1 - 0.2667 - 0.1333 = 0.60 = 9/15 clusters) so that
+  # distribute_n_clusters_to_countries preserves load-weighting between mainland (ES0: 8)
+  # and Balearics (ES1: 1) instead of dividing ES weight equally across sub_networks.
+  focus_weights:
+    FR: 0.2667
+    PT: 0.1333
+
+sector:
+  enabled: false
+
+costs:
+  year:
+
+data:
+  costs:
+    source: archive
+    version: v0.15.0
+  cutout:
+    source: archive
+    version: v1.0
+
+# Upstream PyPSA-Eur settings (its build records the solver, e.g. in time aggregation);
+# the back-cast solves read backcast.solving instead.
+solving:
+  solver:
+    name: highs
+    options: highs-simplex
+
+backcast:
+  # prepare_network.py patch engine: cited corrections, each individually switchable.
+  patches:
+    boundary_flows: true        # FR border closure from measured 2024 flows (model closure, always on)
+    national_capacities: false  # fleet totals, hydro turbine and PT/FR reservoir energy capacities from published actuals (pro rata nodal)
+    wind_correction: false      # ES/PT/FR wind profiles scaled to cited actuals, ES before curtailment (residual ERA5 bias)
+    solar_tracking: false       # share of mainland Spain's solar fleet on single-axis trackers, cited PV energy before curtailment held
+    phs_split: false            # pure-PHS energy/pumping/efficiency; mixed stays in reservoir hydro
+    pumped_storage_limits: false # FR/PT pumped storage at cited pumping capacity; PT storage energy as reported
+    chp_profile: false          # cogeneration as fixed profile (ES: Redeia output and monthly shape; PT: REN monthly output)
+    csp: false                  # CSP capacity with solar-shaped profile scaled to Redeia output
+    biomass_availability: false # cap biomass/waste at the realized capacity factor (fuel-limited)
+    prices: false               # marginal costs from cited fuel + EU ETS prices, PT gas network premium (raw has no CO2 price)
+    daily_fuel_prices: false    # thermal costs follow daily MIBGAS gas and EU allowance prices
+    biomass_waste_fixed: false  # ES/PT biomass and waste run at a fixed output (they burn the fuel they have)
+    demand: false               # loads of each zone scaled to its cited annual demand
+    hydro_inflow: false         # ES/PT/FR reservoir inflow to the observed 2024 natural hydro energy
+    water_value: false          # reservoir water valued at OMIP baseload futures (public before delivery; contract below)
+    reservoir_floor: false      # must-run share of Spanish reservoir hydro (10th percentile of measured output per month)
+    es_hydro_availability: false # Spanish hydro limited to the highest output the fleet has delivered (2019-2025)
+    fr_nuclear_profile: false   # FR nuclear seasonalized by the measured 2024 monthly output
+    es_unit_outages: false      # mainland nuclear, gas and coal availability from declared outages; nuclear minimum 60% (CSN)
+    security_gas_floor: false   # mainland gas plants keep the minimum output the system operator orders for security
+    coal_floor: false           # mainland coal keeps the minimum output of Aboño 2 (steelworks gases, 220 kV zone)
+    start_up_costs: false       # linearized start-up costs of gas, coal and Spanish nuclear plants: each MW of added output counts as a MW started
+    ma_ad_exports: false        # fixed ES exports to Morocco and Andorra
+    bidding_zones: false        # one node and one storage unit per carrier per bidding zone, borders at published NTC
+    drop_empty_generators: false # remove generators below 1 MW (classes and carriers without a fleet)
+  # OMIP contract of the water_value patch: day (latest bulletin before OMIE's auction,
+  # two or more days ahead) or week (week-ahead, last trading day before the week)
+  water_value_contract: day
+  # named variants override the patch defaults; the {variant} wildcard picks one
+  variants:
+    raw: {}
+    patched:
+      national_capacities: true
+      wind_correction: true
+      solar_tracking: true
+      phs_split: true
+      pumped_storage_limits: true
+      chp_profile: true
+      csp: true
+      biomass_availability: true
+      prices: true
+      daily_fuel_prices: true
+      biomass_waste_fixed: true
+      demand: true
+      hydro_inflow: true
+      water_value: true
+      reservoir_floor: true
+      es_hydro_availability: true
+      fr_nuclear_profile: true
+      es_unit_outages: true
+      security_gas_floor: true
+      coal_floor: true
+      start_up_costs: true
+      ma_ad_exports: true
+      bidding_zones: true
+      drop_empty_generators: true
+  solving:
+    # LP solver for the back-cast solves (open-source HiGHS by default); per-solver
+    # options live in scripts/solve_network.py.
+    solver: highs

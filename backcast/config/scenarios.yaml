@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2026 Iegor Riepin
+#
+# SPDX-License-Identifier: MIT
+
+wy2024:
+  snapshots:
+    start: "2024-01-01"
+    end: "2025-01-01"
+    inclusive: left
+  atlite:
+    default_cutout: europe-2024-sarah3-era5
+  load:
+    supplement_synthetic: false

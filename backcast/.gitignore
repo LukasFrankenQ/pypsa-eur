@@ -1,0 +1,19 @@
+# generated model artifacts; tracked: validation reports and the price scorecard
+resources/
+results/*
+!results/validation/
+# figures are committed once, when the project is published
+results/validation/*.png
+results/validation/*.pdf
+
+*.nc
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.snakemake/
+
+# local overrides
+config/local.yaml
+
+# local working notes
+ideas.md

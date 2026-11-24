@@ -1,0 +1,12 @@
+omie_code,name,technology,net_mw,source_id,note
+ALZ1,Almaraz I,nuclear,1011.3,foronuclear_resultados_2024,"Net capacity (Foro Nuclear, Resultados nucleares 2024, p. 26)"
+ALZ2,Almaraz II,nuclear,1005.8,foronuclear_resultados_2024,"Net capacity (Foro Nuclear, Resultados nucleares 2024, p. 26)"
+ASC1,Ascó I,nuclear,995.8,foronuclear_resultados_2024,"Net capacity (Foro Nuclear, Resultados nucleares 2024, p. 26)"
+ASC2,Ascó II,nuclear,991.7,foronuclear_resultados_2024,"Net capacity (Foro Nuclear, Resultados nucleares 2024, p. 26)"
+COF1,Cofrentes,nuclear,1063.9,foronuclear_resultados_2024,"Net capacity (Foro Nuclear, Resultados nucleares 2024, p. 26)"
+TRL1,Trillo,nuclear,1003.0,foronuclear_resultados_2024,"Net capacity (Foro Nuclear, Resultados nucleares 2024, p. 26)"
+VAN2,Vandellós II,nuclear,1045.3,foronuclear_resultados_2024,"Net capacity (Foro Nuclear, Resultados nucleares 2024, p. 26)"
+ABO1,Aboño 1,coal,341.79,cnmc_inf_de_228_22,"Net capacity (CNMC INF/DE/228/22, transfer of Aboño 1 and 2, p. 2)"
+ABO2,Aboño 2,coal,561.885,cnmc_inf_de_228_22,"Net capacity (CNMC INF/DE/228/22, transfer of Aboño 1 and 2, p. 3)"
+SRI3,Soto de Ribera 3,coal,346.25,cnmc_inf_de_531_23,"Net capacity (CNMC INF/DE/531/23, transfer of Soto de Ribera 3, p. 1)"
+BRR1,Los Barrios,coal,570.05,redeia_ise_2025_potencia_instalada,"Remainder of the 1 819.975 MW of mainland coal (Redeia) after the three units above; no unit figure found"

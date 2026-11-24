@@ -1,0 +1,38 @@
+version = 1
+SPDX-PackageName = "spain-price-backcast"
+SPDX-PackageSupplier = "Iegor Riepin (TU Berlin, PyPSA Labs gGmbH) <iegor.riepin@pypsalabs.org>"
+
+[[annotations]]
+path = [
+    "README.md",
+    "doc/*.md",
+    "data/custom/*.csv",
+    "results/**",
+]
+SPDX-FileCopyrightText = "2026 Iegor Riepin"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = [".gitignore", ".gitmodules"]
+SPDX-FileCopyrightText = "2026 Iegor Riepin"
+SPDX-License-Identifier = "CC0-1.0"
+
+# Vendored primary sources, and the series retrieved from providers with only a change
+# of format, keep their providers' licenses; every file's origin and license is
+# registered in doc/data_sources.md. The last matching annotation applies.
+[[annotations]]
+path = [
+    "data/custom/sources/**",
+    "data/custom/omie_day_ahead_2024.csv",
+    "data/custom/omip_week_ahead_2024.csv",
+    "data/custom/omip_day_contract_2024.csv",
+    "data/custom/generation_hourly_2024.csv",
+    "data/custom/fr_boundary_flows_2024.csv",
+    "data/custom/daily_fuel_prices_2024.csv",
+    "data/custom/fr_nuclear_monthly_2024.csv",
+    "data/custom/pt_cogeneration_monthly_2024.csv",
+    "data/custom/es_unit_outages_2024.csv",
+    "data/custom/reservoir_levels_weekly.csv",
+]
+SPDX-FileCopyrightText = "The respective data providers (see doc/data_sources.md)"
+SPDX-License-Identifier = "LicenseRef-Third-Party"
