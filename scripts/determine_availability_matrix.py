@@ -64,6 +64,7 @@ if __name__ == "__main__":
     # do not pull up, set_index does not work if geo dataframe is empty
     regions = regions.set_index("name").rename_axis("bus")
 
+    # Keep in step with the excluder block of scripts/build_availability_raster.py.
     res = params.get("excluder_resolution", 100)
     excluder = atlite.ExclusionContainer(crs=3035, res=res)
 

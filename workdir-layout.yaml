@@ -11,6 +11,7 @@ pull:
   - /logs/**
   - /resources/onshore_regions.geojson
   - /resources/**cell_capacity_factor_*.nc
+  - /resources/**availability_raster_*.tif
 keep:
   - /data/
   - /resources/
