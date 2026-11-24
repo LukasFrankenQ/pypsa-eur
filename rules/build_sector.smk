@@ -314,6 +314,7 @@ def geothermal_heat_source(w):
 
 
 rule build_geothermal_columns:
+    """Maps the subsurface temperature model onto the onshore regions."""
     cache: True
     input:
         code_dependencies=code_dependencies("scripts/build_geothermal_columns.py"),
@@ -343,8 +344,6 @@ rule build_geothermal_columns:
         full_load_hours=config_provider(
             "sector", "district_heating", "geothermal_geology", "full_load_hours"
         ),
-    message:
-        "Mapping the subsurface temperature model onto the onshore regions"
     script:
         scripts("build_geothermal_columns.py")
 
@@ -1438,6 +1437,7 @@ rule build_industrial_sites:
         eutl_locations=rules.retrieve_eutl_data_package.output[
             "installation_locations"
         ],
+    """Locates industrial sites and their CO2 emissions."""
         eutl_nace=rules.retrieve_eutl_data_package.output["nace_mappings"],
         eutl_plant_links=rules.retrieve_eutl_data_package.output[
             "map_installation_to_plant"
@@ -1456,8 +1456,6 @@ rule build_industrial_sites:
         mem_mb=4000,
     params:
         countries=config_provider("countries"),
-    message:
-        "Locating industrial sites and their CO2 emissions"
     script:
         scripts("build_industrial_sites.py")
 
