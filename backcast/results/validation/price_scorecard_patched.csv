@@ -1,18 +1,18 @@
 metric,model,omie,unit
-mean,64.588,63.21,EUR/MWh
-load_weighted_mean,66.43,65.514,EUR/MWh
-solar_capture,47.261,42.516,EUR/MWh
-wind_capture,52.16,55.719,EUR/MWh
+mean,64.6,63.21,EUR/MWh
+load_weighted_mean,66.427,65.514,EUR/MWh
+solar_capture,47.223,42.516,EUR/MWh
+wind_capture,52.649,55.719,EUR/MWh
 p5,0.015,0.0,EUR/MWh
-p25,32.032,17.972,EUR/MWh
-median,70.342,64.955,EUR/MWh
-p75,93.789,100.61,EUR/MWh
-p95,121.929,136.603,EUR/MWh
-share_below_1,14.68,12.066,% of hours
-share_above_100,20.491,25.434,% of hours
-daily_spread,57.306,71.691,EUR/MWh
-correlation,0.913,,-
-mae,14.008,,EUR/MWh
-rmse,18.842,,EUR/MWh
-rmae,0.646,,-
+p25,31.893,17.972,EUR/MWh
+median,70.163,64.955,EUR/MWh
+p75,93.553,100.61,EUR/MWh
+p95,121.856,136.603,EUR/MWh
+share_below_1,13.687,12.066,% of hours
+share_above_100,20.559,25.434,% of hours
+daily_spread,57.6,71.691,EUR/MWh
+correlation,0.912,,-
+mae,14.076,,EUR/MWh
+rmse,18.898,,EUR/MWh
+rmae,0.649,,-
 naive_mae,,21.661,EUR/MWh
