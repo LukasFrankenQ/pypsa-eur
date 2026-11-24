@@ -3,8 +3,6 @@
 # SPDX-License-Identifier: MIT
 """The industrial distribution key weighted by the EU ETS sites (build_industrial_distribution_key)."""
 
-from types import SimpleNamespace
-
 import geopandas as gpd
 import pandas as pd
 import pytest
@@ -118,16 +116,12 @@ def test_ets_sites_take_their_subsector_and_a_bus_of_their_country(sites_csv, re
 
 
 def test_ets_key_weights_by_emissions_and_falls_back_to_population(
-    sites_csv, regions, tmp_path, monkeypatch
+    sites_csv, regions, tmp_path
 ):
     pop = pd.DataFrame(
         {"total": [1.0, 1.0, 1.0, 1.0, 3.0]}, index=pd.Index(regions.index)
     )
     pop.to_csv(tmp_path / "pop_layout.csv")
-    snakemake = SimpleNamespace(
-        input=SimpleNamespace(clustered_pop_layout=tmp_path / "pop_layout.csv")
-    )
-    monkeypatch.setattr(key, "snakemake", snakemake, raising=False)
 
     sites = key.prepare_ets_sites(sites_csv, regions)
     steel = pd.DataFrame(
@@ -149,15 +143,24 @@ def test_ets_key_weights_by_emissions_and_falls_back_to_population(
             "bus",
             "Operating status",
             "Plant type",
-            "Clinker Capacity (millions metric tonnes per annum)",
-            "Cement Capacity (millions metric tonnes per annum)",
+            "Clinker capacity (million metric tonnes per annum)",
+            "Cement capacity (million metric tonnes per annum)",
         ]
     )
-    ammonia = pd.DataFrame(columns=["country", "bus", "Ammonia [kt/a]"])
+    chemicals = pd.DataFrame(
+        columns=["country", "bus", "Product Group", "Capacity (ttpa)"]
+    )
     refineries = pd.DataFrame(columns=["country", "bus", "Capacity [bbl/day]"])
 
     keys = key.build_nodal_distribution_key(
-        sites, steel, ammonia, cement, refineries, regions, ["DE", "NL", "CH"]
+        sites,
+        steel,
+        chemicals,
+        cement,
+        refineries,
+        regions,
+        ["DE", "NL", "CH"],
+        tmp_path / "pop_layout.csv",
     )
 
     assert set(key.SUBSECTORS) <= set(keys.columns)

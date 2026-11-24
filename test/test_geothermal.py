@@ -636,16 +636,9 @@ def test_source_temperature_falls_back_to_the_constant_without_a_file(monkeypatc
     monkeypatch.setattr(
         script,
         "snakemake",
-        SimpleNamespace(
-            input=Namedlist(fromdict={"temp_geothermal": []}),
-            params=SimpleNamespace(
-                limited_heat_sources={
-                    "geothermal": {"constant_temperature_celsius": 65}
-                },
-                heat_sources={"geothermal": {}},
-            ),
-        ),
+        SimpleNamespace(input=Namedlist(fromdict={"temp_geothermal": []})),
         raising=False,
     )
+    limited_heat_sources = {"geothermal": {"constant_temperature_celsius": 65}}
 
-    assert script.get_source_temperature("geothermal") == 65
+    assert script.get_source_temperature("geothermal", limited_heat_sources) == 65
