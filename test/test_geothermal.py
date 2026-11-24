@@ -460,7 +460,7 @@ def test_egs_industry_heat_off_adds_nothing(tmp_path):
 
 
 def test_egs_industry_heat_needs_the_band_bus(tmp_path):
-    # without `industry_t: endogen` there is no band bus: only the
+    # without `sector: industry_heat: enable` there is no band bus: only the
     # low-temperature load is served
     n = _egs_network()
     n.add(

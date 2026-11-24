@@ -508,7 +508,7 @@ class _EnhancedGeothermalIndustryHeatConfig(BaseModel):
     )
     bands: list[Literal["low-temperature", "heat100-200"]] = Field(
         default_factory=lambda: ["low-temperature", "heat100-200"],
-        description="The industrial heat loads the surface heat may serve: `low-temperature` is the node's low-temperature heat for industry (skipped where that load sits on a district-heating bus the geothermal district heat link already serves), `heat100-200` the endogenous 100-200 °C band (needs `sector: industry_t: endogen`). The wellhead floor `min_temperature` (150 °C) covers both; hotter bands are not offered.",
+        description="The industrial heat loads the surface heat may serve: `low-temperature` is the node's low-temperature heat for industry (skipped where that load sits on a district-heating bus the geothermal district heat link already serves), `heat100-200` the endogenous 100-200 °C band (needs `sector: industry_heat: enable`). The wellhead floor `min_temperature` (150 °C) covers both; hotter bands are not offered.",
     )
     efficiency: float | None = Field(
         None,

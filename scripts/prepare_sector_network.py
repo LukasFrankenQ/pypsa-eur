@@ -2020,9 +2020,6 @@ def insert_electricity_distribution_grid(
     v2gs = n.links.index[n.links.carrier == "V2G"]
     n.links.loc[v2gs, "bus1"] += " low voltage"
 
-    # industrial heat pumps (endogenous industry heat bands) stay out: their
-    # bus1 is a process-heat bus and they draw from the AC node like the
-    # electric steam boiler, electrolysis and Haber-Bosch
     industry = n.links.carrier.str.contains("industry (?:heat pump|electric boiler)")
     n.links.loc[industry, "bus0"] += " low voltage"
 
@@ -5281,10 +5278,10 @@ def add_waste(
         unit="MWh_LHV",
     )
 
-        suffix=" Generator",
     n.add(
         "Generator",
         spatial.waste.nodes,
+        suffix=" Generator",
         bus=spatial.waste.nodes,
         carrier="non-sequestered HVC",
         p_nom=potentials["HVC"].values,
@@ -5313,10 +5310,10 @@ def add_waste(
             carrier="municipal solid waste",
         )
 
-            suffix=" Generator",
         n.add(
             "Generator",
             spatial.waste.msw,
+            suffix=" Generator",
             bus=spatial.waste.msw,
             carrier="municipal solid waste",
             p_nom=potentials["MSW"].values,
@@ -5326,10 +5323,10 @@ def add_waste(
 
         # municipal solid waste is CO2 neutral: the credit cancels the
         # emissions of its incineration together with the plastic waste
-            suffix=" to waste",
         n.add(
             "Link",
             spatial.waste.msw,
+            suffix=" to waste",
             bus0=spatial.waste.msw,
             bus1=spatial.waste.nodes,
             bus2="co2 atmosphere",
@@ -5984,10 +5981,10 @@ def add_industry(
         else:
             p_set = industrial_demand["ammonia"].sum() / nhours
 
-            suffix=" demand",
         n.add(
             "Load",
             spatial.ammonia.nodes,
+            suffix=" demand",
             bus=spatial.ammonia.nodes,
             carrier="NH3",
             p_set=p_set,
@@ -6022,19 +6019,19 @@ def add_industry(
             unit="MWh_LHV",
         )
 
-            suffix=" demand",
         n.add(
             "Load",
             spatial.coal.industry,
+            suffix=" demand",
             bus=spatial.coal.industry,
             carrier="coal for industry",
             p_set=p_set,
         )
 
-            suffix=" conversion",
         n.add(
             "Link",
             spatial.coal.industry,
+            suffix=" conversion",
             bus0=spatial.coal.nodes,
             bus1=spatial.coal.industry,
             bus2="co2 atmosphere",
@@ -6072,10 +6069,10 @@ def add_industry(
         )
 
         p_set = steel * 1e6 * nyears / nhours
-            suffix=" demand",
         n.add(
             "Load",
             spatial.steel.nodes,
+            suffix=" demand",
             bus=spatial.steel.nodes,
             carrier="steel",
             p_set=p_set,
@@ -6634,10 +6631,10 @@ def add_shipping(
             unit="MWh_LHV",
         )
 
-            suffix=" demand",
         n.add(
             "Load",
             nodes + " shipping",
+            suffix=" demand",
             bus=nodes + " shipping",
             carrier="shipping",
             p_set=(1 - total_share) * p_set.rename(lambda x: x + " shipping"),
@@ -6673,19 +6670,19 @@ def add_shipping(
                 unit="MWh_LHV",
             )
 
-                suffix=" demand",
             n.add(
                 "Load",
                 buses,
+                suffix=" demand",
                 bus=buses,
                 carrier=carrier,
                 p_set=p_set_fuel,
             )
 
-                suffix=" conversion",
             n.add(
                 "Link",
                 buses,
+                suffix=" conversion",
                 bus1=buses,
                 p_nom_extendable=True,
                 **link,
@@ -7337,7 +7334,7 @@ def add_enhanced_geothermal(
     With `industry_heat: enable`, a link per region and band in
     `industry_heat: bands` (carrier `geothermal industry heat`) delivers the
     surface heat to the industrial heat loads: the endogenous 100-200 °C band
-    bus (`<bus> heat100-200 industry`, present with `industry_t: endogen`) and
+    bus (`<bus> heat100-200 industry`, present with `sector: industry_heat: enable`) and
     the bus of the node's low-temperature heat for industry, unless that is the
     district-heating bus the district-heat link already serves. It is priced
     like the district-heat link, the region's capacity-weighted plant
