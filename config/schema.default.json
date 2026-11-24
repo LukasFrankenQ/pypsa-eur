@@ -1812,26 +1812,6 @@
             }
           }
         },
-        "eea_ghg_inventory": {
-          "description": "Configuration for a single data source.",
-          "properties": {
-            "source": {
-              "default": "archive",
-              "description": "Source of the data. 'archive' retrieves pre-built data, 'primary' retrieves from primary source.",
-              "enum": [
-                "archive",
-                "primary",
-                "build"
-              ],
-              "type": "string"
-            },
-            "version": {
-              "default": "latest",
-              "description": "Version of the data to use. Uses the specific 'version' for the selected 'source' or the dataset tagged 'latest' for this source.",
-              "type": "string"
-            }
-          }
-        },
         "ghg_emissions_energy_community": {
           "description": "Configuration for a single data source.",
           "properties": {
@@ -1853,6 +1833,26 @@
           }
         },
         "desnz_ghg_emissions": {
+          "description": "Configuration for a single data source.",
+          "properties": {
+            "source": {
+              "default": "archive",
+              "description": "Source of the data. 'archive' retrieves pre-built data, 'primary' retrieves from primary source.",
+              "enum": [
+                "archive",
+                "primary",
+                "build"
+              ],
+              "type": "string"
+            },
+            "version": {
+              "default": "latest",
+              "description": "Version of the data to use. Uses the specific 'version' for the selected 'source' or the dataset tagged 'latest' for this source.",
+              "type": "string"
+            }
+          }
+        },
+        "eea_ghg_inventory": {
           "description": "Configuration for a single data source.",
           "properties": {
             "source": {
@@ -1973,6 +1973,26 @@
           }
         },
         "lau_regions": {
+          "description": "Configuration for a single data source.",
+          "properties": {
+            "source": {
+              "default": "archive",
+              "description": "Source of the data. 'archive' retrieves pre-built data, 'primary' retrieves from primary source.",
+              "enum": [
+                "archive",
+                "primary",
+                "build"
+              ],
+              "type": "string"
+            },
+            "version": {
+              "default": "latest",
+              "description": "Version of the data to use. Uses the specific 'version' for the selected 'source' or the dataset tagged 'latest' for this source.",
+              "type": "string"
+            }
+          }
+        },
+        "limberger_temperature": {
           "description": "Configuration for a single data source.",
           "properties": {
             "source": {
@@ -5179,9 +5199,138 @@
             },
             "limited_heat_sources": {
               "additionalProperties": true,
-              "description": "Dictionary with names of limited heat sources (not air). Must be `river_water` / `geothermal` or another heat source in `Manz et al. 2024 <https://www.sciencedirect.com/science/article/pii/S0960148124001769>`_.",
-              "markdownDescription": "Dictionary with names of limited heat sources (not air). Must be `river_water` / `geothermal` or another heat source in [Manz et al. 2024 ](https://www.sciencedirect.com/science/article/pii/S0960148124001769).",
+              "description": "Dictionary with names of limited heat sources (not air). Must be `river_water` / `geothermal` or another heat source in `Manz et al. 2024 <https://www.sciencedirect.com/science/article/pii/S0960148124001769>`_. `geothermal.source` is `geology` (heat-only doublets on the Limberger et al. temperature model, see `geothermal_geology`, with a per-region source temperature) or `manz` (Manz et al. hydrothermal potentials at `constant_temperature_celsius`, 65 or 85).",
+              "markdownDescription": "Dictionary with names of limited heat sources (not air). Must be `river_water` / `geothermal` or another heat source in [Manz et al. 2024 ](https://www.sciencedirect.com/science/article/pii/S0960148124001769). `geothermal.source` is `geology` (heat-only doublets on the Limberger et al. temperature model, see `geothermal_geology`, with a per-region source temperature) or `manz` (Manz et al. hydrothermal potentials at `constant_temperature_celsius`, 65 or 85).",
               "type": "object"
+            },
+            "geothermal_geology": {
+              "description": "Configuration for `sector.district_heating.geothermal_geology` settings.",
+              "properties": {
+                "depths": {
+                  "description": "Doublet depths considered (km), sampled from the Limberger et al. temperature model; each column takes its cheapest feasible one.",
+                  "items": {
+                    "type": "number"
+                  },
+                  "type": "array"
+                },
+                "min_temperature": {
+                  "default": 70.0,
+                  "description": "Minimum wellhead temperature (\u00b0C) of a heat-only doublet. Hours whose district-heating forward temperature exceeds the source temperature fall to the geothermal heat pump.",
+                  "type": "number"
+                },
+                "reinjection_temperature": {
+                  "default": 40.0,
+                  "description": "Brine reinjection temperature (\u00b0C) of a heat-only doublet, cascaded use including heat pumps.",
+                  "type": "number"
+                },
+                "hydrothermal_max_depth": {
+                  "default": 3.0,
+                  "description": "Depth (km) down to which a doublet is assumed hydrothermal (natural aquifer, no stimulation); deeper doublets are stimulated (petrothermal). The `depth_only` policy of the TU Delft module_geothermal (Egberink, Limberger et al. 2026) without a sediment map.",
+                  "type": "number"
+                },
+                "well_spacing": {
+                  "default": 1.0,
+                  "description": "Distance between production and injection well (km); a doublet occupies 2 spacing^2 (TU Delft module_geothermal).",
+                  "type": "number"
+                },
+                "flow_hydrothermal": {
+                  "default": 100.0,
+                  "description": "Flow of a hydrothermal doublet (kg/s), TU Delft module_geothermal.",
+                  "type": "number"
+                },
+                "flow_stimulated": {
+                  "default": 60.0,
+                  "description": "Flow of a stimulated doublet (kg/s), TU Delft module_geothermal.",
+                  "type": "number"
+                },
+                "pump_cost": {
+                  "default": 600000.0,
+                  "description": "Pump cost per doublet (EUR2020, before calibration), TU Delft module_geothermal.",
+                  "type": "number"
+                },
+                "stimulation_cost": {
+                  "default": 1030000.0,
+                  "description": "Stimulation cost per stimulated doublet (EUR2020), TU Delft module_geothermal.",
+                  "type": "number"
+                },
+                "drilling_cost": {
+                  "description": "ThermoGIS drilling-cost curve, EUR2020 per well: constant + linear d + quadratic d^2 (d in m).",
+                  "properties": {
+                    "constant": {
+                      "default": 250000.0,
+                      "description": "Constant term (EUR2020).",
+                      "type": "number"
+                    },
+                    "linear": {
+                      "default": 700.0,
+                      "description": "Linear term (EUR2020/m).",
+                      "type": "number"
+                    },
+                    "quadratic": {
+                      "default": 0.2,
+                      "description": "Quadratic term (EUR2020/m^2).",
+                      "type": "number"
+                    }
+                  }
+                },
+                "calibration": {
+                  "description": "Reference doublet for `sector.district_heating.geothermal_geology.calibration`.",
+                  "properties": {
+                    "depth": {
+                      "default": 2.5,
+                      "description": "Depth of the reference doublet (km).",
+                      "type": "number"
+                    },
+                    "production_temperature": {
+                      "default": 78.0,
+                      "description": "Wellhead temperature of the reference doublet (\u00b0C); with the hydrothermal flow and the reinjection temperature it gives 16 MW_th, the PBL 12-20 MW_th reference size.",
+                      "type": "number"
+                    },
+                    "investment": {
+                      "default": 1719.0,
+                      "description": "Investment of the reference doublet (EUR/kW_th, at the PBL price level), PBL SDE++ 2026 deep geothermal (baseload) 12-20 MW_th, from realised Dutch projects.",
+                      "type": "number"
+                    }
+                  }
+                },
+                "fixed_om": {
+                  "default": 118.0,
+                  "description": "Fixed O&M (EUR/kW_th/yr, at the PBL price level), PBL SDE++ 2026 deep geothermal (baseload) 12-20 MW_th.",
+                  "type": "number"
+                },
+                "variable_om": {
+                  "default": 5.3,
+                  "description": "Variable O&M including pumping electricity (EUR/MWh_th, at the PBL price level), PBL SDE++ 2026 deep geothermal (baseload) 12-20 MW_th.",
+                  "type": "number"
+                },
+                "price_level_to_eur2020": {
+                  "default": 0.816,
+                  "description": "Conversion of the PBL SDE++ 2026 price level to the cost data's EUR2020: euro-area HICP (2015=100) 2020 over 2025, 105.1/128.75.",
+                  "type": "number"
+                },
+                "lifetime": {
+                  "default": 30.0,
+                  "description": "Doublet lifetime (years).",
+                  "type": "number"
+                },
+                "full_load_hours": {
+                  "default": 4000.0,
+                  "description": "Full-load hours used to rank doublets by levelised cost and to turn district-heating demand into a capacity cap (Manz et al. 2024).",
+                  "type": "number"
+                },
+                "lcoh_bins": {
+                  "description": "Upper edges (EUR2020/MWh_th, at `full_load_hours`) of the supply-curve steps per region; columns above the last edge are dropped.",
+                  "items": {
+                    "type": "number"
+                  },
+                  "type": "array"
+                },
+                "urban_density": {
+                  "default": 1500.0,
+                  "description": "Countries without Fraunhofer district-heating areas (outside the EU-27): a column counts with the urban share of its weather cell, urban population (`pop_layout_urban`) over this density (inhabitants/km\u00b2, the Eurostat DEGURBA urban-centre threshold), at most the whole cell.",
+                  "type": "number"
+                }
+              }
             },
             "direct_utilisation_heat_sources": {
               "description": "List of heat sources for direct heat utilisation in district heating. Must be in the keys of `heat_utilisation_potentials` (e.g. `geothermal`).",
@@ -5972,6 +6121,31 @@
                   "default": false,
                   "description": "Add methanol-to-olefins/aromatics as a way to meet naphtha demand in industry sector for high value chemicals.",
                   "type": "boolean"
+                },
+                "e_biomethanol": {
+                  "default": false,
+                  "description": "Add hydrogen-boosted biomass-to-methanol (e-biomethanol): electrolytic hydrogen turns the capturable share of the biogenic carbon of biomass-to-methanol into additional methanol, synthesised at the methanolisation hydrogen input (Zhang et al. 2026, arXiv 2604.12080). Parameters are derived from the biomass-to-methanol and methanolisation cost rows by carbon balance.",
+                  "type": "boolean"
+                },
+                "biogas_to_methanol": {
+                  "default": false,
+                  "description": "Add biogas-to-methanol (partial oxidation of raw biogas to methanol) on the biogas bus, parametrised by `sector.biogas_methanol.biogas_to_methanol`.",
+                  "type": "boolean"
+                },
+                "e_biogas_methanol": {
+                  "default": false,
+                  "description": "Add hydrogen-boosted biogas-to-methanol (e-biogas-methanol) on the biogas bus, parametrised by `sector.biogas_methanol.e_biogas_methanol`.",
+                  "type": "boolean"
+                },
+                "grey_methanol": {
+                  "default": false,
+                  "description": "Add extendable grey methanol (natural gas reforming and methanol synthesis, process CO2 vented), with the same parameters as the existing grey methanol plants.",
+                  "type": "boolean"
+                },
+                "blue_methanol": {
+                  "default": false,
+                  "description": "Add extendable blue methanol: grey methanol whose process CO2 is captured at the SMR CC capture rate and sent to CO2 storage, at the grey capital cost plus the SMR CC over SMR difference.",
+                  "type": "boolean"
                 }
               }
             },
@@ -6041,6 +6215,21 @@
         "use_electrolysis_waste_heat": {
           "default": 0.25,
           "description": "Add option for using waste heat of electrolysis in district heating networks.",
+          "type": "number"
+        },
+        "use_biofuel_waste_heat": {
+          "default": 0.25,
+          "description": "Share of the waste heat of biomass to liquid (with and without carbon capture) and electrobiofuels used in district heating networks, at the node of the biomass bus (needs `biomass_spatial`).",
+          "type": "number"
+        },
+        "use_biosng_waste_heat": {
+          "default": 0.25,
+          "description": "Share of the waste heat of BioSNG (with and without carbon capture) and e-bioSNG used in district heating networks, at the node of the biomass bus (needs `biomass_spatial`).",
+          "type": "number"
+        },
+        "use_biomethanol_waste_heat": {
+          "default": 0.25,
+          "description": "Share of the waste heat of biomass-to-methanol (with and without carbon capture), e-biomethanol, biogas-to-methanol and e-biogas-methanol used in district heating networks, at the node of the feedstock bus.",
           "type": "number"
         },
         "electricity_transmission_grid": {
@@ -6326,6 +6515,11 @@
           "description": "Add option for transforming solid biomass into synthesis gas with the same properties as natural gas with carbon capture.",
           "type": "boolean"
         },
+        "e_biosng": {
+          "default": false,
+          "description": "Add hydrogen-boosted BioSNG (e-bioSNG): electrolytic hydrogen turns the capturable share of the biogenic carbon of BioSNG into additional methane, synthesised at the methanation hydrogen input (Zhang et al. 2026, arXiv 2604.12080). Parameters are derived from the BioSNG and methanation cost rows by carbon balance.",
+          "type": "boolean"
+        },
         "bioH2": {
           "default": false,
           "description": "Add option for transforming solid biomass into hydrogen with carbon capture.",
@@ -6398,11 +6592,62 @@
               "description": "Add option for variable capacity factor (see Ricks et al. 2024).",
               "type": "boolean"
             },
-            "sustainability_factor": {
-              "default": 0.0025,
-              "description": "Share of sourced heat that is replenished by the earth's core (see details in `build_egs_potentials.py <https://github.com/PyPSA/pypsa-eur/blob/master/scripts/build_egs_potentials.py>`_).",
-              "markdownDescription": "Share of sourced heat that is replenished by the earth's core (see details in [build_egs_potentials.py ](https://github.com/PyPSA/pypsa-eur/blob/master/scripts/build_egs_potentials.py)).",
+            "max_temperature": {
+              "default": 250.0,
+              "description": "Cap (\u00b0C) on the production temperature fed to the Ricks & Jenkins plant fits, which are binary-cycle fits to 200 \u00b0C and linear extrapolations above.",
               "type": "number"
+            },
+            "min_temperature": {
+              "default": 150.0,
+              "description": "Minimum reservoir temperature (\u00b0C) for an EGS power plant (binary-cycle floor, Aghahosseini & Breyer 2020).",
+              "type": "number"
+            },
+            "reinjection_temperature": {
+              "default": 70.0,
+              "description": "Brine temperature (\u00b0C) after the binary plant; sets the heat extracted per kW of electricity, i.e. the organic Rankine cycle efficiency.",
+              "type": "number"
+            },
+            "parasitic_fraction": {
+              "default": 0.15,
+              "description": "Wellfield pumping as a share of gross output; Ricks & Jenkins' output excludes it, so costs and capacity are converted to net output.",
+              "type": "number"
+            },
+            "availability": {
+              "default": 0.85,
+              "description": "Availability of the wells (`p_max_pu` of the well links); NREL ATB 2024 uses 0.80 binary / 0.90 flash.",
+              "type": "number"
+            },
+            "producers_per_injector": {
+              "default": 1.5,
+              "description": "Producer wells per injector (Ricks & Jenkins 2025 central case).",
+              "type": "number"
+            },
+            "flow_derating": {
+              "default": 0.77,
+              "description": "Flow derating of the design flow (Ricks & Jenkins 2025).",
+              "type": "number"
+            },
+            "lateral_length": {
+              "default": 2286.0,
+              "description": "Horizontal lateral length per well (m), Ricks & Jenkins 2025.",
+              "type": "number"
+            },
+            "lifetime": {
+              "default": 30.0,
+              "description": "Lifetime of wells and plant (years), NREL ATB 2024.",
+              "type": "number"
+            },
+            "usd2021_to_eur": {
+              "default": 0.836,
+              "description": "Conversion of the cost model's USD2021 to the cost data's EUR2020: US CPI-U 2020/2021 (0.955) times the 2020 ECB reference rate (0.8755 EUR/USD).",
+              "type": "number"
+            },
+            "lcoe_bins": {
+              "description": "Upper edges (EUR/MWh_el, at `availability` and the cost data's discount rate) of the supply-curve steps per region; columns above the last edge are dropped. A single edge (the default) makes one step per region, its capacity the region's whole potential and its cost and efficiency the capacity-weighted mean over the region's columns: the model does not resolve where within a region the heat users and the hot rock coincide, so a region's average is what its industry and district heat can count on, not its cheapest tranche. Several edges (e.g. 75, 100, 125, 150, 175, 200, 250, 300, 400) restore a stepped supply curve per region.",
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
             },
             "industry_heat": {
               "description": "Configuration for `sector.enhanced_geothermal.industry_heat`: the EGS surface heat delivered to industrial heat loads.",
@@ -6413,7 +6658,7 @@
                   "type": "boolean"
                 },
                 "bands": {
-                  "description": "The industrial heat loads the surface heat may serve: `low-temperature` is the node's low-temperature heat for industry (skipped where that load sits on a district-heating bus the geothermal district heat link already serves), `heat100-200` the endogenous 100-200 \u00b0C band (needs `sector: industry_t: endogen`). The wellhead floor `min_temperature` (150 \u00b0C) covers both; hotter bands are not offered.",
+                  "description": "The industrial heat loads the surface heat may serve: `low-temperature` is the node's low-temperature heat for industry (skipped where that load sits on a district-heating bus the geothermal district heat link already serves), `heat100-200` the endogenous 100-200 \u00b0C band (needs `sector: industry_heat: enable`). The wellhead floor `min_temperature` (150 \u00b0C) covers both; hotter bands are not offered.",
                   "items": {
                     "enum": [
                       "low-temperature",
@@ -6518,6 +6763,90 @@
           "default": false,
           "description": "Allow the relocation of iron ore reduction step.",
           "type": "boolean"
+        },
+        "biogas_methanol": {
+          "description": "Configuration for `sector.biogas_methanol` settings.",
+          "properties": {
+            "biogas_carbon_intensity": {
+              "default": 0.33,
+              "description": "Biogenic carbon in raw biogas per MWh of its methane (tCO2/MWh_CH4): the methane's own 0.198 plus the CO2 share of a 60/40 CH4/CO2 biogas. The methanol routes withdraw from the atmosphere only the carbon that ends in the methanol; a route whose methanol carbon would exceed this is refused.",
+              "type": "number"
+            },
+            "biogas_to_methanol": {
+              "description": "One biogas-to-methanol route of `sector.biogas_methanol`.",
+              "properties": {
+                "efficiency": {
+                  "description": "Methanol output per biogas input (MWh_MeOH/MWh_CH4, biogas counted by its methane content as on the biogas bus).",
+                  "type": "number"
+                },
+                "hydrogen_input": {
+                  "default": 0.0,
+                  "description": "Hydrogen input per biogas input (MWh_H2/MWh_CH4).",
+                  "type": "number"
+                },
+                "investment": {
+                  "description": "Investment per methanol output capacity (EUR/kW_MeOH), excluding the digester, whose cost the link carries from the `biogas` cost row as biogas upgrading does.",
+                  "type": "number"
+                },
+                "FOM": {
+                  "description": "Fixed operation and maintenance (%/year).",
+                  "type": "number"
+                },
+                "VOM": {
+                  "description": "Variable operation and maintenance (EUR/MWh_MeOH).",
+                  "type": "number"
+                },
+                "lifetime": {
+                  "description": "Lifetime (years).",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "efficiency",
+                "investment",
+                "FOM",
+                "VOM",
+                "lifetime"
+              ]
+            },
+            "e_biogas_methanol": {
+              "description": "One biogas-to-methanol route of `sector.biogas_methanol`.",
+              "properties": {
+                "efficiency": {
+                  "description": "Methanol output per biogas input (MWh_MeOH/MWh_CH4, biogas counted by its methane content as on the biogas bus).",
+                  "type": "number"
+                },
+                "hydrogen_input": {
+                  "default": 0.0,
+                  "description": "Hydrogen input per biogas input (MWh_H2/MWh_CH4).",
+                  "type": "number"
+                },
+                "investment": {
+                  "description": "Investment per methanol output capacity (EUR/kW_MeOH), excluding the digester, whose cost the link carries from the `biogas` cost row as biogas upgrading does.",
+                  "type": "number"
+                },
+                "FOM": {
+                  "description": "Fixed operation and maintenance (%/year).",
+                  "type": "number"
+                },
+                "VOM": {
+                  "description": "Variable operation and maintenance (EUR/MWh_MeOH).",
+                  "type": "number"
+                },
+                "lifetime": {
+                  "description": "Lifetime (years).",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "efficiency",
+                "investment",
+                "FOM",
+                "VOM",
+                "lifetime"
+              ]
+            }
+          }
         }
       }
     },
@@ -7788,6 +8117,127 @@
         }
       }
     },
+    "_BiogasMethanolConfig": {
+      "description": "Configuration for `sector.biogas_methanol` settings.",
+      "properties": {
+        "biogas_carbon_intensity": {
+          "default": 0.33,
+          "description": "Biogenic carbon in raw biogas per MWh of its methane (tCO2/MWh_CH4): the methane's own 0.198 plus the CO2 share of a 60/40 CH4/CO2 biogas. The methanol routes withdraw from the atmosphere only the carbon that ends in the methanol; a route whose methanol carbon would exceed this is refused.",
+          "type": "number"
+        },
+        "biogas_to_methanol": {
+          "description": "One biogas-to-methanol route of `sector.biogas_methanol`.",
+          "properties": {
+            "efficiency": {
+              "description": "Methanol output per biogas input (MWh_MeOH/MWh_CH4, biogas counted by its methane content as on the biogas bus).",
+              "type": "number"
+            },
+            "hydrogen_input": {
+              "default": 0.0,
+              "description": "Hydrogen input per biogas input (MWh_H2/MWh_CH4).",
+              "type": "number"
+            },
+            "investment": {
+              "description": "Investment per methanol output capacity (EUR/kW_MeOH), excluding the digester, whose cost the link carries from the `biogas` cost row as biogas upgrading does.",
+              "type": "number"
+            },
+            "FOM": {
+              "description": "Fixed operation and maintenance (%/year).",
+              "type": "number"
+            },
+            "VOM": {
+              "description": "Variable operation and maintenance (EUR/MWh_MeOH).",
+              "type": "number"
+            },
+            "lifetime": {
+              "description": "Lifetime (years).",
+              "type": "number"
+            }
+          },
+          "required": [
+            "efficiency",
+            "investment",
+            "FOM",
+            "VOM",
+            "lifetime"
+          ]
+        },
+        "e_biogas_methanol": {
+          "description": "One biogas-to-methanol route of `sector.biogas_methanol`.",
+          "properties": {
+            "efficiency": {
+              "description": "Methanol output per biogas input (MWh_MeOH/MWh_CH4, biogas counted by its methane content as on the biogas bus).",
+              "type": "number"
+            },
+            "hydrogen_input": {
+              "default": 0.0,
+              "description": "Hydrogen input per biogas input (MWh_H2/MWh_CH4).",
+              "type": "number"
+            },
+            "investment": {
+              "description": "Investment per methanol output capacity (EUR/kW_MeOH), excluding the digester, whose cost the link carries from the `biogas` cost row as biogas upgrading does.",
+              "type": "number"
+            },
+            "FOM": {
+              "description": "Fixed operation and maintenance (%/year).",
+              "type": "number"
+            },
+            "VOM": {
+              "description": "Variable operation and maintenance (EUR/MWh_MeOH).",
+              "type": "number"
+            },
+            "lifetime": {
+              "description": "Lifetime (years).",
+              "type": "number"
+            }
+          },
+          "required": [
+            "efficiency",
+            "investment",
+            "FOM",
+            "VOM",
+            "lifetime"
+          ]
+        }
+      }
+    },
+    "_BiogasMethanolRouteConfig": {
+      "description": "One biogas-to-methanol route of `sector.biogas_methanol`.",
+      "properties": {
+        "efficiency": {
+          "description": "Methanol output per biogas input (MWh_MeOH/MWh_CH4, biogas counted by its methane content as on the biogas bus).",
+          "type": "number"
+        },
+        "hydrogen_input": {
+          "default": 0.0,
+          "description": "Hydrogen input per biogas input (MWh_H2/MWh_CH4).",
+          "type": "number"
+        },
+        "investment": {
+          "description": "Investment per methanol output capacity (EUR/kW_MeOH), excluding the digester, whose cost the link carries from the `biogas` cost row as biogas upgrading does.",
+          "type": "number"
+        },
+        "FOM": {
+          "description": "Fixed operation and maintenance (%/year).",
+          "type": "number"
+        },
+        "VOM": {
+          "description": "Variable operation and maintenance (EUR/MWh_MeOH).",
+          "type": "number"
+        },
+        "lifetime": {
+          "description": "Lifetime (years).",
+          "type": "number"
+        }
+      },
+      "required": [
+        "efficiency",
+        "investment",
+        "FOM",
+        "VOM",
+        "lifetime"
+      ]
+    },
     "_BiomassClassesConfig": {
       "description": "Configuration for `biomass.classes` settings.",
       "properties": {
@@ -8317,9 +8767,138 @@
         },
         "limited_heat_sources": {
           "additionalProperties": true,
-          "description": "Dictionary with names of limited heat sources (not air). Must be `river_water` / `geothermal` or another heat source in `Manz et al. 2024 <https://www.sciencedirect.com/science/article/pii/S0960148124001769>`_.",
-          "markdownDescription": "Dictionary with names of limited heat sources (not air). Must be `river_water` / `geothermal` or another heat source in [Manz et al. 2024 ](https://www.sciencedirect.com/science/article/pii/S0960148124001769).",
+          "description": "Dictionary with names of limited heat sources (not air). Must be `river_water` / `geothermal` or another heat source in `Manz et al. 2024 <https://www.sciencedirect.com/science/article/pii/S0960148124001769>`_. `geothermal.source` is `geology` (heat-only doublets on the Limberger et al. temperature model, see `geothermal_geology`, with a per-region source temperature) or `manz` (Manz et al. hydrothermal potentials at `constant_temperature_celsius`, 65 or 85).",
+          "markdownDescription": "Dictionary with names of limited heat sources (not air). Must be `river_water` / `geothermal` or another heat source in [Manz et al. 2024 ](https://www.sciencedirect.com/science/article/pii/S0960148124001769). `geothermal.source` is `geology` (heat-only doublets on the Limberger et al. temperature model, see `geothermal_geology`, with a per-region source temperature) or `manz` (Manz et al. hydrothermal potentials at `constant_temperature_celsius`, 65 or 85).",
           "type": "object"
+        },
+        "geothermal_geology": {
+          "description": "Configuration for `sector.district_heating.geothermal_geology` settings.",
+          "properties": {
+            "depths": {
+              "description": "Doublet depths considered (km), sampled from the Limberger et al. temperature model; each column takes its cheapest feasible one.",
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "min_temperature": {
+              "default": 70.0,
+              "description": "Minimum wellhead temperature (\u00b0C) of a heat-only doublet. Hours whose district-heating forward temperature exceeds the source temperature fall to the geothermal heat pump.",
+              "type": "number"
+            },
+            "reinjection_temperature": {
+              "default": 40.0,
+              "description": "Brine reinjection temperature (\u00b0C) of a heat-only doublet, cascaded use including heat pumps.",
+              "type": "number"
+            },
+            "hydrothermal_max_depth": {
+              "default": 3.0,
+              "description": "Depth (km) down to which a doublet is assumed hydrothermal (natural aquifer, no stimulation); deeper doublets are stimulated (petrothermal). The `depth_only` policy of the TU Delft module_geothermal (Egberink, Limberger et al. 2026) without a sediment map.",
+              "type": "number"
+            },
+            "well_spacing": {
+              "default": 1.0,
+              "description": "Distance between production and injection well (km); a doublet occupies 2 spacing^2 (TU Delft module_geothermal).",
+              "type": "number"
+            },
+            "flow_hydrothermal": {
+              "default": 100.0,
+              "description": "Flow of a hydrothermal doublet (kg/s), TU Delft module_geothermal.",
+              "type": "number"
+            },
+            "flow_stimulated": {
+              "default": 60.0,
+              "description": "Flow of a stimulated doublet (kg/s), TU Delft module_geothermal.",
+              "type": "number"
+            },
+            "pump_cost": {
+              "default": 600000.0,
+              "description": "Pump cost per doublet (EUR2020, before calibration), TU Delft module_geothermal.",
+              "type": "number"
+            },
+            "stimulation_cost": {
+              "default": 1030000.0,
+              "description": "Stimulation cost per stimulated doublet (EUR2020), TU Delft module_geothermal.",
+              "type": "number"
+            },
+            "drilling_cost": {
+              "description": "ThermoGIS drilling-cost curve, EUR2020 per well: constant + linear d + quadratic d^2 (d in m).",
+              "properties": {
+                "constant": {
+                  "default": 250000.0,
+                  "description": "Constant term (EUR2020).",
+                  "type": "number"
+                },
+                "linear": {
+                  "default": 700.0,
+                  "description": "Linear term (EUR2020/m).",
+                  "type": "number"
+                },
+                "quadratic": {
+                  "default": 0.2,
+                  "description": "Quadratic term (EUR2020/m^2).",
+                  "type": "number"
+                }
+              }
+            },
+            "calibration": {
+              "description": "Reference doublet for `sector.district_heating.geothermal_geology.calibration`.",
+              "properties": {
+                "depth": {
+                  "default": 2.5,
+                  "description": "Depth of the reference doublet (km).",
+                  "type": "number"
+                },
+                "production_temperature": {
+                  "default": 78.0,
+                  "description": "Wellhead temperature of the reference doublet (\u00b0C); with the hydrothermal flow and the reinjection temperature it gives 16 MW_th, the PBL 12-20 MW_th reference size.",
+                  "type": "number"
+                },
+                "investment": {
+                  "default": 1719.0,
+                  "description": "Investment of the reference doublet (EUR/kW_th, at the PBL price level), PBL SDE++ 2026 deep geothermal (baseload) 12-20 MW_th, from realised Dutch projects.",
+                  "type": "number"
+                }
+              }
+            },
+            "fixed_om": {
+              "default": 118.0,
+              "description": "Fixed O&M (EUR/kW_th/yr, at the PBL price level), PBL SDE++ 2026 deep geothermal (baseload) 12-20 MW_th.",
+              "type": "number"
+            },
+            "variable_om": {
+              "default": 5.3,
+              "description": "Variable O&M including pumping electricity (EUR/MWh_th, at the PBL price level), PBL SDE++ 2026 deep geothermal (baseload) 12-20 MW_th.",
+              "type": "number"
+            },
+            "price_level_to_eur2020": {
+              "default": 0.816,
+              "description": "Conversion of the PBL SDE++ 2026 price level to the cost data's EUR2020: euro-area HICP (2015=100) 2020 over 2025, 105.1/128.75.",
+              "type": "number"
+            },
+            "lifetime": {
+              "default": 30.0,
+              "description": "Doublet lifetime (years).",
+              "type": "number"
+            },
+            "full_load_hours": {
+              "default": 4000.0,
+              "description": "Full-load hours used to rank doublets by levelised cost and to turn district-heating demand into a capacity cap (Manz et al. 2024).",
+              "type": "number"
+            },
+            "lcoh_bins": {
+              "description": "Upper edges (EUR2020/MWh_th, at `full_load_hours`) of the supply-curve steps per region; columns above the last edge are dropped.",
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "urban_density": {
+              "default": 1500.0,
+              "description": "Countries without Fraunhofer district-heating areas (outside the EU-27): a column counts with the urban share of its weather cell, urban population (`pop_layout_urban`) over this density (inhabitants/km\u00b2, the Eurostat DEGURBA urban-centre threshold), at most the whole cell.",
+              "type": "number"
+            }
+          }
         },
         "direct_utilisation_heat_sources": {
           "description": "List of heat sources for direct heat utilisation in district heating. Must be in the keys of `heat_utilisation_potentials` (e.g. `geothermal`).",
@@ -8488,11 +9067,152 @@
           "description": "Add option for variable capacity factor (see Ricks et al. 2024).",
           "type": "boolean"
         },
-        "sustainability_factor": {
-          "default": 0.0025,
-          "description": "Share of sourced heat that is replenished by the earth's core (see details in `build_egs_potentials.py <https://github.com/PyPSA/pypsa-eur/blob/master/scripts/build_egs_potentials.py>`_).",
-          "markdownDescription": "Share of sourced heat that is replenished by the earth's core (see details in [build_egs_potentials.py ](https://github.com/PyPSA/pypsa-eur/blob/master/scripts/build_egs_potentials.py)).",
+        "max_temperature": {
+          "default": 250.0,
+          "description": "Cap (\u00b0C) on the production temperature fed to the Ricks & Jenkins plant fits, which are binary-cycle fits to 200 \u00b0C and linear extrapolations above.",
           "type": "number"
+        },
+        "min_temperature": {
+          "default": 150.0,
+          "description": "Minimum reservoir temperature (\u00b0C) for an EGS power plant (binary-cycle floor, Aghahosseini & Breyer 2020).",
+          "type": "number"
+        },
+        "reinjection_temperature": {
+          "default": 70.0,
+          "description": "Brine temperature (\u00b0C) after the binary plant; sets the heat extracted per kW of electricity, i.e. the organic Rankine cycle efficiency.",
+          "type": "number"
+        },
+        "parasitic_fraction": {
+          "default": 0.15,
+          "description": "Wellfield pumping as a share of gross output; Ricks & Jenkins' output excludes it, so costs and capacity are converted to net output.",
+          "type": "number"
+        },
+        "availability": {
+          "default": 0.85,
+          "description": "Availability of the wells (`p_max_pu` of the well links); NREL ATB 2024 uses 0.80 binary / 0.90 flash.",
+          "type": "number"
+        },
+        "producers_per_injector": {
+          "default": 1.5,
+          "description": "Producer wells per injector (Ricks & Jenkins 2025 central case).",
+          "type": "number"
+        },
+        "flow_derating": {
+          "default": 0.77,
+          "description": "Flow derating of the design flow (Ricks & Jenkins 2025).",
+          "type": "number"
+        },
+        "lateral_length": {
+          "default": 2286.0,
+          "description": "Horizontal lateral length per well (m), Ricks & Jenkins 2025.",
+          "type": "number"
+        },
+        "lifetime": {
+          "default": 30.0,
+          "description": "Lifetime of wells and plant (years), NREL ATB 2024.",
+          "type": "number"
+        },
+        "usd2021_to_eur": {
+          "default": 0.836,
+          "description": "Conversion of the cost model's USD2021 to the cost data's EUR2020: US CPI-U 2020/2021 (0.955) times the 2020 ECB reference rate (0.8755 EUR/USD).",
+          "type": "number"
+        },
+        "lcoe_bins": {
+          "description": "Upper edges (EUR/MWh_el, at `availability` and the cost data's discount rate) of the supply-curve steps per region; columns above the last edge are dropped. A single edge (the default) makes one step per region, its capacity the region's whole potential and its cost and efficiency the capacity-weighted mean over the region's columns: the model does not resolve where within a region the heat users and the hot rock coincide, so a region's average is what its industry and district heat can count on, not its cheapest tranche. Several edges (e.g. 75, 100, 125, 150, 175, 200, 250, 300, 400) restore a stepped supply curve per region.",
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "industry_heat": {
+          "description": "Configuration for `sector.enhanced_geothermal.industry_heat`: the EGS surface heat delivered to industrial heat loads.",
+          "properties": {
+            "enable": {
+              "default": false,
+              "description": "Add, per region with EGS potential, a link from the surface heat bus of the wells to the industrial heat loads of `bands`, priced like the district-heat link: the region's capacity-weighted plant investment times `surcharge`.",
+              "type": "boolean"
+            },
+            "bands": {
+              "description": "The industrial heat loads the surface heat may serve: `low-temperature` is the node's low-temperature heat for industry (skipped where that load sits on a district-heating bus the geothermal district heat link already serves), `heat100-200` the endogenous 100-200 \u00b0C band (needs `sector: industry_heat: enable`). The wellhead floor `min_temperature` (150 \u00b0C) covers both; hotter bands are not offered.",
+              "items": {
+                "enum": [
+                  "low-temperature",
+                  "heat100-200"
+                ],
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "efficiency": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Heat delivered per unit of surface heat; null takes the cost data's `geothermal: district heat-input`."
+            },
+            "surcharge": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Investment of the heat delivery per kW_th as a percentage of the organic Rankine cycle plant investment; null takes the cost data's `geothermal: district heat surcharge`."
+            }
+          }
+        }
+      }
+    },
+    "_EnhancedGeothermalIndustryHeatConfig": {
+      "description": "Configuration for `sector.enhanced_geothermal.industry_heat`: the EGS surface heat delivered to industrial heat loads.",
+      "properties": {
+        "enable": {
+          "default": false,
+          "description": "Add, per region with EGS potential, a link from the surface heat bus of the wells to the industrial heat loads of `bands`, priced like the district-heat link: the region's capacity-weighted plant investment times `surcharge`.",
+          "type": "boolean"
+        },
+        "bands": {
+          "description": "The industrial heat loads the surface heat may serve: `low-temperature` is the node's low-temperature heat for industry (skipped where that load sits on a district-heating bus the geothermal district heat link already serves), `heat100-200` the endogenous 100-200 \u00b0C band (needs `sector: industry_heat: enable`). The wellhead floor `min_temperature` (150 \u00b0C) covers both; hotter bands are not offered.",
+          "items": {
+            "enum": [
+              "low-temperature",
+              "heat100-200"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "efficiency": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Heat delivered per unit of surface heat; null takes the cost data's `geothermal: district heat-input`."
+        },
+        "surcharge": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Investment of the heat delivery per kW_th as a percentage of the organic Rankine cycle plant investment; null takes the cost data's `geothermal: district heat surcharge`."
         }
       }
     },
@@ -8549,96 +9269,6 @@
           },
           "description": "Per carrier: efficiency `efficiency` of a plant built in `year`, rising by `slope` per later build year up to `max`.",
           "type": "object"
-        },
-        "industry_heat": {
-          "description": "Configuration for `sector.enhanced_geothermal.industry_heat`: the EGS surface heat delivered to industrial heat loads.",
-          "properties": {
-            "enable": {
-              "default": false,
-              "description": "Add, per region with EGS potential, a link from the surface heat bus of the wells to the industrial heat loads of `bands`, priced like the district-heat link: the region's capacity-weighted plant investment times `surcharge`.",
-              "type": "boolean"
-            },
-            "bands": {
-              "description": "The industrial heat loads the surface heat may serve: `low-temperature` is the node's low-temperature heat for industry (skipped where that load sits on a district-heating bus the geothermal district heat link already serves), `heat100-200` the endogenous 100-200 \u00b0C band (needs `sector: industry_t: endogen`). The wellhead floor `min_temperature` (150 \u00b0C) covers both; hotter bands are not offered.",
-              "items": {
-                "enum": [
-                  "low-temperature",
-                  "heat100-200"
-                ],
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "efficiency": {
-              "anyOf": [
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": null,
-              "description": "Heat delivered per unit of surface heat; null takes the cost data's `geothermal: district heat-input`."
-            },
-            "surcharge": {
-              "anyOf": [
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "default": null,
-              "description": "Investment of the heat delivery per kW_th as a percentage of the organic Rankine cycle plant investment; null takes the cost data's `geothermal: district heat surcharge`."
-            }
-          }
-        }
-      }
-    },
-    "_EnhancedGeothermalIndustryHeatConfig": {
-      "description": "Configuration for `sector.enhanced_geothermal.industry_heat`: the EGS surface heat delivered to industrial heat loads.",
-      "properties": {
-        "enable": {
-          "default": false,
-          "description": "Add, per region with EGS potential, a link from the surface heat bus of the wells to the industrial heat loads of `bands`, priced like the district-heat link: the region's capacity-weighted plant investment times `surcharge`.",
-          "type": "boolean"
-        },
-        "bands": {
-          "description": "The industrial heat loads the surface heat may serve: `low-temperature` is the node's low-temperature heat for industry (skipped where that load sits on a district-heating bus the geothermal district heat link already serves), `heat100-200` the endogenous 100-200 \u00b0C band (needs `sector: industry_t: endogen`). The wellhead floor `min_temperature` (150 \u00b0C) covers both; hotter bands are not offered.",
-          "items": {
-            "enum": [
-              "low-temperature",
-              "heat100-200"
-            ],
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "efficiency": {
-          "anyOf": [
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Heat delivered per unit of surface heat; null takes the cost data's `geothermal: district heat-input`."
-        },
-        "surcharge": {
-          "anyOf": [
-            {
-              "type": "number"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Investment of the heat delivery per kW_th as a percentage of the organic Rankine cycle plant investment; null takes the cost data's `geothermal: district heat surcharge`."
         }
       }
     },
@@ -8813,6 +9443,175 @@
         "standing losses": {
           "default": 0,
           "description": "Default standing losses.",
+          "type": "number"
+        }
+      }
+    },
+    "_GeothermalDrillingCostConfig": {
+      "description": "ThermoGIS drilling-cost curve, EUR2020 per well: constant + linear d + quadratic d^2 (d in m).",
+      "properties": {
+        "constant": {
+          "default": 250000.0,
+          "description": "Constant term (EUR2020).",
+          "type": "number"
+        },
+        "linear": {
+          "default": 700.0,
+          "description": "Linear term (EUR2020/m).",
+          "type": "number"
+        },
+        "quadratic": {
+          "default": 0.2,
+          "description": "Quadratic term (EUR2020/m^2).",
+          "type": "number"
+        }
+      }
+    },
+    "_GeothermalGeologyHeatConfig": {
+      "description": "Configuration for `sector.district_heating.geothermal_geology` settings.",
+      "properties": {
+        "depths": {
+          "description": "Doublet depths considered (km), sampled from the Limberger et al. temperature model; each column takes its cheapest feasible one.",
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "min_temperature": {
+          "default": 70.0,
+          "description": "Minimum wellhead temperature (\u00b0C) of a heat-only doublet. Hours whose district-heating forward temperature exceeds the source temperature fall to the geothermal heat pump.",
+          "type": "number"
+        },
+        "reinjection_temperature": {
+          "default": 40.0,
+          "description": "Brine reinjection temperature (\u00b0C) of a heat-only doublet, cascaded use including heat pumps.",
+          "type": "number"
+        },
+        "hydrothermal_max_depth": {
+          "default": 3.0,
+          "description": "Depth (km) down to which a doublet is assumed hydrothermal (natural aquifer, no stimulation); deeper doublets are stimulated (petrothermal). The `depth_only` policy of the TU Delft module_geothermal (Egberink, Limberger et al. 2026) without a sediment map.",
+          "type": "number"
+        },
+        "well_spacing": {
+          "default": 1.0,
+          "description": "Distance between production and injection well (km); a doublet occupies 2 spacing^2 (TU Delft module_geothermal).",
+          "type": "number"
+        },
+        "flow_hydrothermal": {
+          "default": 100.0,
+          "description": "Flow of a hydrothermal doublet (kg/s), TU Delft module_geothermal.",
+          "type": "number"
+        },
+        "flow_stimulated": {
+          "default": 60.0,
+          "description": "Flow of a stimulated doublet (kg/s), TU Delft module_geothermal.",
+          "type": "number"
+        },
+        "pump_cost": {
+          "default": 600000.0,
+          "description": "Pump cost per doublet (EUR2020, before calibration), TU Delft module_geothermal.",
+          "type": "number"
+        },
+        "stimulation_cost": {
+          "default": 1030000.0,
+          "description": "Stimulation cost per stimulated doublet (EUR2020), TU Delft module_geothermal.",
+          "type": "number"
+        },
+        "drilling_cost": {
+          "description": "ThermoGIS drilling-cost curve, EUR2020 per well: constant + linear d + quadratic d^2 (d in m).",
+          "properties": {
+            "constant": {
+              "default": 250000.0,
+              "description": "Constant term (EUR2020).",
+              "type": "number"
+            },
+            "linear": {
+              "default": 700.0,
+              "description": "Linear term (EUR2020/m).",
+              "type": "number"
+            },
+            "quadratic": {
+              "default": 0.2,
+              "description": "Quadratic term (EUR2020/m^2).",
+              "type": "number"
+            }
+          }
+        },
+        "calibration": {
+          "description": "Reference doublet for `sector.district_heating.geothermal_geology.calibration`.",
+          "properties": {
+            "depth": {
+              "default": 2.5,
+              "description": "Depth of the reference doublet (km).",
+              "type": "number"
+            },
+            "production_temperature": {
+              "default": 78.0,
+              "description": "Wellhead temperature of the reference doublet (\u00b0C); with the hydrothermal flow and the reinjection temperature it gives 16 MW_th, the PBL 12-20 MW_th reference size.",
+              "type": "number"
+            },
+            "investment": {
+              "default": 1719.0,
+              "description": "Investment of the reference doublet (EUR/kW_th, at the PBL price level), PBL SDE++ 2026 deep geothermal (baseload) 12-20 MW_th, from realised Dutch projects.",
+              "type": "number"
+            }
+          }
+        },
+        "fixed_om": {
+          "default": 118.0,
+          "description": "Fixed O&M (EUR/kW_th/yr, at the PBL price level), PBL SDE++ 2026 deep geothermal (baseload) 12-20 MW_th.",
+          "type": "number"
+        },
+        "variable_om": {
+          "default": 5.3,
+          "description": "Variable O&M including pumping electricity (EUR/MWh_th, at the PBL price level), PBL SDE++ 2026 deep geothermal (baseload) 12-20 MW_th.",
+          "type": "number"
+        },
+        "price_level_to_eur2020": {
+          "default": 0.816,
+          "description": "Conversion of the PBL SDE++ 2026 price level to the cost data's EUR2020: euro-area HICP (2015=100) 2020 over 2025, 105.1/128.75.",
+          "type": "number"
+        },
+        "lifetime": {
+          "default": 30.0,
+          "description": "Doublet lifetime (years).",
+          "type": "number"
+        },
+        "full_load_hours": {
+          "default": 4000.0,
+          "description": "Full-load hours used to rank doublets by levelised cost and to turn district-heating demand into a capacity cap (Manz et al. 2024).",
+          "type": "number"
+        },
+        "lcoh_bins": {
+          "description": "Upper edges (EUR2020/MWh_th, at `full_load_hours`) of the supply-curve steps per region; columns above the last edge are dropped.",
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "urban_density": {
+          "default": 1500.0,
+          "description": "Countries without Fraunhofer district-heating areas (outside the EU-27): a column counts with the urban share of its weather cell, urban population (`pop_layout_urban`) over this density (inhabitants/km\u00b2, the Eurostat DEGURBA urban-centre threshold), at most the whole cell.",
+          "type": "number"
+        }
+      }
+    },
+    "_GeothermalHeatCalibrationConfig": {
+      "description": "Reference doublet for `sector.district_heating.geothermal_geology.calibration`.",
+      "properties": {
+        "depth": {
+          "default": 2.5,
+          "description": "Depth of the reference doublet (km).",
+          "type": "number"
+        },
+        "production_temperature": {
+          "default": 78.0,
+          "description": "Wellhead temperature of the reference doublet (\u00b0C); with the hydrothermal flow and the reinjection temperature it gives 16 MW_th, the PBL 12-20 MW_th reference size.",
+          "type": "number"
+        },
+        "investment": {
+          "default": 1719.0,
+          "description": "Investment of the reference doublet (EUR/kW_th, at the PBL price level), PBL SDE++ 2026 deep geothermal (baseload) 12-20 MW_th, from realised Dutch projects.",
           "type": "number"
         }
       }
@@ -9078,23 +9877,6 @@
         }
       }
     },
-    "_InteractiveBusBalanceConfig": {
-      "description": "Configuration for `plotting.interactive_bus_balance` settings.",
-      "properties": {
-        "bus_name_pattern": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": "None",
-          "description": "Shell-style glob pattern (see Python's ``fnmatch``) used to select buses for the interactive bus balance plot, e.g. ``DE*`` for German buses. The default value matches no bus name literally, so no plots are generated unless overridden. Set to ``NONE_BY_DEFAULT`` to explicitly disable, or ``null``/empty to include all buses."
-        }
-      }
-    },
     "_InfeasibilityDiagnosisConfig": {
       "description": "Configuration for `solving.options.infeasibility_diagnosis` settings.",
       "properties": {
@@ -9115,6 +9897,23 @@
           ],
           "default": null,
           "description": "Seconds the IIS computation may take (the solver's time limit, honoured by Gurobi). The diagnosis is logged as far as it got and the rule fails either way. Unbounded when null."
+        }
+      }
+    },
+    "_InteractiveBusBalanceConfig": {
+      "description": "Configuration for `plotting.interactive_bus_balance` settings.",
+      "properties": {
+        "bus_name_pattern": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "None",
+          "description": "Shell-style glob pattern (see Python's ``fnmatch``) used to select buses for the interactive bus balance plot, e.g. ``DE*`` for German buses. The default value matches no bus name literally, so no plots are generated unless overridden. Set to ``NONE_BY_DEFAULT`` to explicitly disable, or ``null``/empty to include all buses."
         }
       }
     },
@@ -9335,6 +10134,31 @@
         "meoh_to_oa": {
           "default": false,
           "description": "Add methanol-to-olefins/aromatics as a way to meet naphtha demand in industry sector for high value chemicals.",
+          "type": "boolean"
+        },
+        "e_biomethanol": {
+          "default": false,
+          "description": "Add hydrogen-boosted biomass-to-methanol (e-biomethanol): electrolytic hydrogen turns the capturable share of the biogenic carbon of biomass-to-methanol into additional methanol, synthesised at the methanolisation hydrogen input (Zhang et al. 2026, arXiv 2604.12080). Parameters are derived from the biomass-to-methanol and methanolisation cost rows by carbon balance.",
+          "type": "boolean"
+        },
+        "biogas_to_methanol": {
+          "default": false,
+          "description": "Add biogas-to-methanol (partial oxidation of raw biogas to methanol) on the biogas bus, parametrised by `sector.biogas_methanol.biogas_to_methanol`.",
+          "type": "boolean"
+        },
+        "e_biogas_methanol": {
+          "default": false,
+          "description": "Add hydrogen-boosted biogas-to-methanol (e-biogas-methanol) on the biogas bus, parametrised by `sector.biogas_methanol.e_biogas_methanol`.",
+          "type": "boolean"
+        },
+        "grey_methanol": {
+          "default": false,
+          "description": "Add extendable grey methanol (natural gas reforming and methanol synthesis, process CO2 vented), with the same parameters as the existing grey methanol plants.",
+          "type": "boolean"
+        },
+        "blue_methanol": {
+          "default": false,
+          "description": "Add extendable blue methanol: grey methanol whose process CO2 is captured at the SMR CC capture rate and sent to CO2 storage, at the grey capital cost plus the SMR CC over SMR difference.",
           "type": "boolean"
         }
       }
@@ -13441,9 +14265,138 @@
             },
             "limited_heat_sources": {
               "additionalProperties": true,
-              "description": "Dictionary with names of limited heat sources (not air). Must be `river_water` / `geothermal` or another heat source in `Manz et al. 2024 <https://www.sciencedirect.com/science/article/pii/S0960148124001769>`_.",
-              "markdownDescription": "Dictionary with names of limited heat sources (not air). Must be `river_water` / `geothermal` or another heat source in [Manz et al. 2024 ](https://www.sciencedirect.com/science/article/pii/S0960148124001769).",
+              "description": "Dictionary with names of limited heat sources (not air). Must be `river_water` / `geothermal` or another heat source in `Manz et al. 2024 <https://www.sciencedirect.com/science/article/pii/S0960148124001769>`_. `geothermal.source` is `geology` (heat-only doublets on the Limberger et al. temperature model, see `geothermal_geology`, with a per-region source temperature) or `manz` (Manz et al. hydrothermal potentials at `constant_temperature_celsius`, 65 or 85).",
+              "markdownDescription": "Dictionary with names of limited heat sources (not air). Must be `river_water` / `geothermal` or another heat source in [Manz et al. 2024 ](https://www.sciencedirect.com/science/article/pii/S0960148124001769). `geothermal.source` is `geology` (heat-only doublets on the Limberger et al. temperature model, see `geothermal_geology`, with a per-region source temperature) or `manz` (Manz et al. hydrothermal potentials at `constant_temperature_celsius`, 65 or 85).",
               "type": "object"
+            },
+            "geothermal_geology": {
+              "description": "Configuration for `sector.district_heating.geothermal_geology` settings.",
+              "properties": {
+                "depths": {
+                  "description": "Doublet depths considered (km), sampled from the Limberger et al. temperature model; each column takes its cheapest feasible one.",
+                  "items": {
+                    "type": "number"
+                  },
+                  "type": "array"
+                },
+                "min_temperature": {
+                  "default": 70.0,
+                  "description": "Minimum wellhead temperature (\u00b0C) of a heat-only doublet. Hours whose district-heating forward temperature exceeds the source temperature fall to the geothermal heat pump.",
+                  "type": "number"
+                },
+                "reinjection_temperature": {
+                  "default": 40.0,
+                  "description": "Brine reinjection temperature (\u00b0C) of a heat-only doublet, cascaded use including heat pumps.",
+                  "type": "number"
+                },
+                "hydrothermal_max_depth": {
+                  "default": 3.0,
+                  "description": "Depth (km) down to which a doublet is assumed hydrothermal (natural aquifer, no stimulation); deeper doublets are stimulated (petrothermal). The `depth_only` policy of the TU Delft module_geothermal (Egberink, Limberger et al. 2026) without a sediment map.",
+                  "type": "number"
+                },
+                "well_spacing": {
+                  "default": 1.0,
+                  "description": "Distance between production and injection well (km); a doublet occupies 2 spacing^2 (TU Delft module_geothermal).",
+                  "type": "number"
+                },
+                "flow_hydrothermal": {
+                  "default": 100.0,
+                  "description": "Flow of a hydrothermal doublet (kg/s), TU Delft module_geothermal.",
+                  "type": "number"
+                },
+                "flow_stimulated": {
+                  "default": 60.0,
+                  "description": "Flow of a stimulated doublet (kg/s), TU Delft module_geothermal.",
+                  "type": "number"
+                },
+                "pump_cost": {
+                  "default": 600000.0,
+                  "description": "Pump cost per doublet (EUR2020, before calibration), TU Delft module_geothermal.",
+                  "type": "number"
+                },
+                "stimulation_cost": {
+                  "default": 1030000.0,
+                  "description": "Stimulation cost per stimulated doublet (EUR2020), TU Delft module_geothermal.",
+                  "type": "number"
+                },
+                "drilling_cost": {
+                  "description": "ThermoGIS drilling-cost curve, EUR2020 per well: constant + linear d + quadratic d^2 (d in m).",
+                  "properties": {
+                    "constant": {
+                      "default": 250000.0,
+                      "description": "Constant term (EUR2020).",
+                      "type": "number"
+                    },
+                    "linear": {
+                      "default": 700.0,
+                      "description": "Linear term (EUR2020/m).",
+                      "type": "number"
+                    },
+                    "quadratic": {
+                      "default": 0.2,
+                      "description": "Quadratic term (EUR2020/m^2).",
+                      "type": "number"
+                    }
+                  }
+                },
+                "calibration": {
+                  "description": "Reference doublet for `sector.district_heating.geothermal_geology.calibration`.",
+                  "properties": {
+                    "depth": {
+                      "default": 2.5,
+                      "description": "Depth of the reference doublet (km).",
+                      "type": "number"
+                    },
+                    "production_temperature": {
+                      "default": 78.0,
+                      "description": "Wellhead temperature of the reference doublet (\u00b0C); with the hydrothermal flow and the reinjection temperature it gives 16 MW_th, the PBL 12-20 MW_th reference size.",
+                      "type": "number"
+                    },
+                    "investment": {
+                      "default": 1719.0,
+                      "description": "Investment of the reference doublet (EUR/kW_th, at the PBL price level), PBL SDE++ 2026 deep geothermal (baseload) 12-20 MW_th, from realised Dutch projects.",
+                      "type": "number"
+                    }
+                  }
+                },
+                "fixed_om": {
+                  "default": 118.0,
+                  "description": "Fixed O&M (EUR/kW_th/yr, at the PBL price level), PBL SDE++ 2026 deep geothermal (baseload) 12-20 MW_th.",
+                  "type": "number"
+                },
+                "variable_om": {
+                  "default": 5.3,
+                  "description": "Variable O&M including pumping electricity (EUR/MWh_th, at the PBL price level), PBL SDE++ 2026 deep geothermal (baseload) 12-20 MW_th.",
+                  "type": "number"
+                },
+                "price_level_to_eur2020": {
+                  "default": 0.816,
+                  "description": "Conversion of the PBL SDE++ 2026 price level to the cost data's EUR2020: euro-area HICP (2015=100) 2020 over 2025, 105.1/128.75.",
+                  "type": "number"
+                },
+                "lifetime": {
+                  "default": 30.0,
+                  "description": "Doublet lifetime (years).",
+                  "type": "number"
+                },
+                "full_load_hours": {
+                  "default": 4000.0,
+                  "description": "Full-load hours used to rank doublets by levelised cost and to turn district-heating demand into a capacity cap (Manz et al. 2024).",
+                  "type": "number"
+                },
+                "lcoh_bins": {
+                  "description": "Upper edges (EUR2020/MWh_th, at `full_load_hours`) of the supply-curve steps per region; columns above the last edge are dropped.",
+                  "items": {
+                    "type": "number"
+                  },
+                  "type": "array"
+                },
+                "urban_density": {
+                  "default": 1500.0,
+                  "description": "Countries without Fraunhofer district-heating areas (outside the EU-27): a column counts with the urban share of its weather cell, urban population (`pop_layout_urban`) over this density (inhabitants/km\u00b2, the Eurostat DEGURBA urban-centre threshold), at most the whole cell.",
+                  "type": "number"
+                }
+              }
             },
             "direct_utilisation_heat_sources": {
               "description": "List of heat sources for direct heat utilisation in district heating. Must be in the keys of `heat_utilisation_potentials` (e.g. `geothermal`).",
@@ -14234,6 +15187,31 @@
                   "default": false,
                   "description": "Add methanol-to-olefins/aromatics as a way to meet naphtha demand in industry sector for high value chemicals.",
                   "type": "boolean"
+                },
+                "e_biomethanol": {
+                  "default": false,
+                  "description": "Add hydrogen-boosted biomass-to-methanol (e-biomethanol): electrolytic hydrogen turns the capturable share of the biogenic carbon of biomass-to-methanol into additional methanol, synthesised at the methanolisation hydrogen input (Zhang et al. 2026, arXiv 2604.12080). Parameters are derived from the biomass-to-methanol and methanolisation cost rows by carbon balance.",
+                  "type": "boolean"
+                },
+                "biogas_to_methanol": {
+                  "default": false,
+                  "description": "Add biogas-to-methanol (partial oxidation of raw biogas to methanol) on the biogas bus, parametrised by `sector.biogas_methanol.biogas_to_methanol`.",
+                  "type": "boolean"
+                },
+                "e_biogas_methanol": {
+                  "default": false,
+                  "description": "Add hydrogen-boosted biogas-to-methanol (e-biogas-methanol) on the biogas bus, parametrised by `sector.biogas_methanol.e_biogas_methanol`.",
+                  "type": "boolean"
+                },
+                "grey_methanol": {
+                  "default": false,
+                  "description": "Add extendable grey methanol (natural gas reforming and methanol synthesis, process CO2 vented), with the same parameters as the existing grey methanol plants.",
+                  "type": "boolean"
+                },
+                "blue_methanol": {
+                  "default": false,
+                  "description": "Add extendable blue methanol: grey methanol whose process CO2 is captured at the SMR CC capture rate and sent to CO2 storage, at the grey capital cost plus the SMR CC over SMR difference.",
+                  "type": "boolean"
                 }
               }
             },
@@ -14303,6 +15281,21 @@
         "use_electrolysis_waste_heat": {
           "default": 0.25,
           "description": "Add option for using waste heat of electrolysis in district heating networks.",
+          "type": "number"
+        },
+        "use_biofuel_waste_heat": {
+          "default": 0.25,
+          "description": "Share of the waste heat of biomass to liquid (with and without carbon capture) and electrobiofuels used in district heating networks, at the node of the biomass bus (needs `biomass_spatial`).",
+          "type": "number"
+        },
+        "use_biosng_waste_heat": {
+          "default": 0.25,
+          "description": "Share of the waste heat of BioSNG (with and without carbon capture) and e-bioSNG used in district heating networks, at the node of the biomass bus (needs `biomass_spatial`).",
+          "type": "number"
+        },
+        "use_biomethanol_waste_heat": {
+          "default": 0.25,
+          "description": "Share of the waste heat of biomass-to-methanol (with and without carbon capture), e-biomethanol, biogas-to-methanol and e-biogas-methanol used in district heating networks, at the node of the feedstock bus.",
           "type": "number"
         },
         "electricity_transmission_grid": {
@@ -14588,6 +15581,11 @@
           "description": "Add option for transforming solid biomass into synthesis gas with the same properties as natural gas with carbon capture.",
           "type": "boolean"
         },
+        "e_biosng": {
+          "default": false,
+          "description": "Add hydrogen-boosted BioSNG (e-bioSNG): electrolytic hydrogen turns the capturable share of the biogenic carbon of BioSNG into additional methane, synthesised at the methanation hydrogen input (Zhang et al. 2026, arXiv 2604.12080). Parameters are derived from the BioSNG and methanation cost rows by carbon balance.",
+          "type": "boolean"
+        },
         "bioH2": {
           "default": false,
           "description": "Add option for transforming solid biomass into hydrogen with carbon capture.",
@@ -14660,11 +15658,62 @@
               "description": "Add option for variable capacity factor (see Ricks et al. 2024).",
               "type": "boolean"
             },
-            "sustainability_factor": {
-              "default": 0.0025,
-              "description": "Share of sourced heat that is replenished by the earth's core (see details in `build_egs_potentials.py <https://github.com/PyPSA/pypsa-eur/blob/master/scripts/build_egs_potentials.py>`_).",
-              "markdownDescription": "Share of sourced heat that is replenished by the earth's core (see details in [build_egs_potentials.py ](https://github.com/PyPSA/pypsa-eur/blob/master/scripts/build_egs_potentials.py)).",
+            "max_temperature": {
+              "default": 250.0,
+              "description": "Cap (\u00b0C) on the production temperature fed to the Ricks & Jenkins plant fits, which are binary-cycle fits to 200 \u00b0C and linear extrapolations above.",
               "type": "number"
+            },
+            "min_temperature": {
+              "default": 150.0,
+              "description": "Minimum reservoir temperature (\u00b0C) for an EGS power plant (binary-cycle floor, Aghahosseini & Breyer 2020).",
+              "type": "number"
+            },
+            "reinjection_temperature": {
+              "default": 70.0,
+              "description": "Brine temperature (\u00b0C) after the binary plant; sets the heat extracted per kW of electricity, i.e. the organic Rankine cycle efficiency.",
+              "type": "number"
+            },
+            "parasitic_fraction": {
+              "default": 0.15,
+              "description": "Wellfield pumping as a share of gross output; Ricks & Jenkins' output excludes it, so costs and capacity are converted to net output.",
+              "type": "number"
+            },
+            "availability": {
+              "default": 0.85,
+              "description": "Availability of the wells (`p_max_pu` of the well links); NREL ATB 2024 uses 0.80 binary / 0.90 flash.",
+              "type": "number"
+            },
+            "producers_per_injector": {
+              "default": 1.5,
+              "description": "Producer wells per injector (Ricks & Jenkins 2025 central case).",
+              "type": "number"
+            },
+            "flow_derating": {
+              "default": 0.77,
+              "description": "Flow derating of the design flow (Ricks & Jenkins 2025).",
+              "type": "number"
+            },
+            "lateral_length": {
+              "default": 2286.0,
+              "description": "Horizontal lateral length per well (m), Ricks & Jenkins 2025.",
+              "type": "number"
+            },
+            "lifetime": {
+              "default": 30.0,
+              "description": "Lifetime of wells and plant (years), NREL ATB 2024.",
+              "type": "number"
+            },
+            "usd2021_to_eur": {
+              "default": 0.836,
+              "description": "Conversion of the cost model's USD2021 to the cost data's EUR2020: US CPI-U 2020/2021 (0.955) times the 2020 ECB reference rate (0.8755 EUR/USD).",
+              "type": "number"
+            },
+            "lcoe_bins": {
+              "description": "Upper edges (EUR/MWh_el, at `availability` and the cost data's discount rate) of the supply-curve steps per region; columns above the last edge are dropped. A single edge (the default) makes one step per region, its capacity the region's whole potential and its cost and efficiency the capacity-weighted mean over the region's columns: the model does not resolve where within a region the heat users and the hot rock coincide, so a region's average is what its industry and district heat can count on, not its cheapest tranche. Several edges (e.g. 75, 100, 125, 150, 175, 200, 250, 300, 400) restore a stepped supply curve per region.",
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
             },
             "industry_heat": {
               "description": "Configuration for `sector.enhanced_geothermal.industry_heat`: the EGS surface heat delivered to industrial heat loads.",
@@ -14675,7 +15724,7 @@
                   "type": "boolean"
                 },
                 "bands": {
-                  "description": "The industrial heat loads the surface heat may serve: `low-temperature` is the node's low-temperature heat for industry (skipped where that load sits on a district-heating bus the geothermal district heat link already serves), `heat100-200` the endogenous 100-200 \u00b0C band (needs `sector: industry_t: endogen`). The wellhead floor `min_temperature` (150 \u00b0C) covers both; hotter bands are not offered.",
+                  "description": "The industrial heat loads the surface heat may serve: `low-temperature` is the node's low-temperature heat for industry (skipped where that load sits on a district-heating bus the geothermal district heat link already serves), `heat100-200` the endogenous 100-200 \u00b0C band (needs `sector: industry_heat: enable`). The wellhead floor `min_temperature` (150 \u00b0C) covers both; hotter bands are not offered.",
                   "items": {
                     "enum": [
                       "low-temperature",
@@ -14780,6 +15829,90 @@
           "default": false,
           "description": "Allow the relocation of iron ore reduction step.",
           "type": "boolean"
+        },
+        "biogas_methanol": {
+          "description": "Configuration for `sector.biogas_methanol` settings.",
+          "properties": {
+            "biogas_carbon_intensity": {
+              "default": 0.33,
+              "description": "Biogenic carbon in raw biogas per MWh of its methane (tCO2/MWh_CH4): the methane's own 0.198 plus the CO2 share of a 60/40 CH4/CO2 biogas. The methanol routes withdraw from the atmosphere only the carbon that ends in the methanol; a route whose methanol carbon would exceed this is refused.",
+              "type": "number"
+            },
+            "biogas_to_methanol": {
+              "description": "One biogas-to-methanol route of `sector.biogas_methanol`.",
+              "properties": {
+                "efficiency": {
+                  "description": "Methanol output per biogas input (MWh_MeOH/MWh_CH4, biogas counted by its methane content as on the biogas bus).",
+                  "type": "number"
+                },
+                "hydrogen_input": {
+                  "default": 0.0,
+                  "description": "Hydrogen input per biogas input (MWh_H2/MWh_CH4).",
+                  "type": "number"
+                },
+                "investment": {
+                  "description": "Investment per methanol output capacity (EUR/kW_MeOH), excluding the digester, whose cost the link carries from the `biogas` cost row as biogas upgrading does.",
+                  "type": "number"
+                },
+                "FOM": {
+                  "description": "Fixed operation and maintenance (%/year).",
+                  "type": "number"
+                },
+                "VOM": {
+                  "description": "Variable operation and maintenance (EUR/MWh_MeOH).",
+                  "type": "number"
+                },
+                "lifetime": {
+                  "description": "Lifetime (years).",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "efficiency",
+                "investment",
+                "FOM",
+                "VOM",
+                "lifetime"
+              ]
+            },
+            "e_biogas_methanol": {
+              "description": "One biogas-to-methanol route of `sector.biogas_methanol`.",
+              "properties": {
+                "efficiency": {
+                  "description": "Methanol output per biogas input (MWh_MeOH/MWh_CH4, biogas counted by its methane content as on the biogas bus).",
+                  "type": "number"
+                },
+                "hydrogen_input": {
+                  "default": 0.0,
+                  "description": "Hydrogen input per biogas input (MWh_H2/MWh_CH4).",
+                  "type": "number"
+                },
+                "investment": {
+                  "description": "Investment per methanol output capacity (EUR/kW_MeOH), excluding the digester, whose cost the link carries from the `biogas` cost row as biogas upgrading does.",
+                  "type": "number"
+                },
+                "FOM": {
+                  "description": "Fixed operation and maintenance (%/year).",
+                  "type": "number"
+                },
+                "VOM": {
+                  "description": "Variable operation and maintenance (EUR/MWh_MeOH).",
+                  "type": "number"
+                },
+                "lifetime": {
+                  "description": "Lifetime (years).",
+                  "type": "number"
+                }
+              },
+              "required": [
+                "efficiency",
+                "investment",
+                "FOM",
+                "VOM",
+                "lifetime"
+              ]
+            }
+          }
         }
       }
     },
@@ -16735,26 +17868,6 @@
             }
           }
         },
-        "eea_ghg_inventory": {
-          "description": "Configuration for a single data source.",
-          "properties": {
-            "source": {
-              "default": "archive",
-              "description": "Source of the data. 'archive' retrieves pre-built data, 'primary' retrieves from primary source.",
-              "enum": [
-                "archive",
-                "primary",
-                "build"
-              ],
-              "type": "string"
-            },
-            "version": {
-              "default": "latest",
-              "description": "Version of the data to use. Uses the specific 'version' for the selected 'source' or the dataset tagged 'latest' for this source.",
-              "type": "string"
-            }
-          }
-        },
         "ghg_emissions_energy_community": {
           "description": "Configuration for a single data source.",
           "properties": {
@@ -16776,6 +17889,26 @@
           }
         },
         "desnz_ghg_emissions": {
+          "description": "Configuration for a single data source.",
+          "properties": {
+            "source": {
+              "default": "archive",
+              "description": "Source of the data. 'archive' retrieves pre-built data, 'primary' retrieves from primary source.",
+              "enum": [
+                "archive",
+                "primary",
+                "build"
+              ],
+              "type": "string"
+            },
+            "version": {
+              "default": "latest",
+              "description": "Version of the data to use. Uses the specific 'version' for the selected 'source' or the dataset tagged 'latest' for this source.",
+              "type": "string"
+            }
+          }
+        },
+        "eea_ghg_inventory": {
           "description": "Configuration for a single data source.",
           "properties": {
             "source": {
@@ -16896,6 +18029,26 @@
           }
         },
         "lau_regions": {
+          "description": "Configuration for a single data source.",
+          "properties": {
+            "source": {
+              "default": "archive",
+              "description": "Source of the data. 'archive' retrieves pre-built data, 'primary' retrieves from primary source.",
+              "enum": [
+                "archive",
+                "primary",
+                "build"
+              ],
+              "type": "string"
+            },
+            "version": {
+              "default": "latest",
+              "description": "Version of the data to use. Uses the specific 'version' for the selected 'source' or the dataset tagged 'latest' for this source.",
+              "type": "string"
+            }
+          }
+        },
+        "limberger_temperature": {
           "description": "Configuration for a single data source.",
           "properties": {
             "source": {

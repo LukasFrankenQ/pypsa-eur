@@ -8,7 +8,7 @@ version: v2026.09.0
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration/#tutorial_cf
 tutorial: false
 
-# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration.html#custom_rules
+# docs in https://pypsa-eur.readthedocs.io/en/latest/configuration/#custom_rules_cf
 custom_rules: []
 
 # docs in https://pypsa-eur.readthedocs.io/en/latest/configuration/#logging_cf
