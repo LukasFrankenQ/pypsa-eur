@@ -102,11 +102,11 @@ def get_unit_conversion_factor(
         Dictionary of unit scaling factors. Default: {"Wh": 1, "kWh": 1e3, "MWh": 1e6, "GWh": 1e9, "TWh": 1e12}.
     """
 
-    if input_unit not in unit_scaling.keys():
+    if input_unit not in unit_scaling:
         raise ValueError(
             f"Input unit {input_unit} not allowed. Must be one of {unit_scaling.keys()}"
         )
-    elif output_unit not in unit_scaling.keys():
+    elif output_unit not in unit_scaling:
         raise ValueError(
             f"Output unit {output_unit} not allowed. Must be one of {
                 unit_scaling.keys()

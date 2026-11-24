@@ -7423,7 +7423,7 @@ def add_enhanced_geothermal(
         bus_steps = bus_steps.set_axis(well_name)
         if egs_config["var_cf"]:
             efficiency = pd.concat(
-                {name: capacity_factors[bus] for name in well_name}, axis=1
+                dict.fromkeys(well_name, capacity_factors[bus]), axis=1
             ).loc[n.snapshots]
         else:
             efficiency = 1.0
