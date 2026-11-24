@@ -90,6 +90,8 @@ proj = ">=9.6.2"
 pydeck = ">0.6"  # pypsa fails to import with pydeck <0.6, lower bound was only added from pypsa 1.0.6
 pypsa = ">=1.1"
 pyscipopt = ">=5.6.0"
+# pyscipopt 6.2.1 on conda-forge links libscip.so.10.0, which scip 10.1 no longer ships.
+scip = ">=10.0,<10.1"
 pytables = ">=3.10.2"
 python = ">=3.12"
 pytz = ">=2025.2"
