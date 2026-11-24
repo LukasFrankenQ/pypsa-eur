@@ -30,8 +30,7 @@ countries:
 
 snapshots:
   start: "2024-01-01"
-  end: "2025-01-01"
-  inclusive: left
+  end: "2024-12-31 23:00"
 
 enable:
   drop_leap_day: true
