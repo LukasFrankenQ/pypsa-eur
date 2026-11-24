@@ -1,5 +1,12 @@
 # Spain Price Back-cast
 
+> **In this fork.** This folder is Iegor Riepin's
+> [pypsa-price-backcast](https://github.com/Irieo/pypsa-price-backcast) (commit
+> `8f1128d2`, MIT), brought into the PyPSA-Eur fork it used to pin as a submodule. The
+> enclosing repository takes the submodule's place, so the back-cast now builds on
+> the fork's PyPSA-Eur and not on the v2026.09.0 release the text below describes.
+> Run it from this folder with `pixi run --manifest-path ../pixi.toml snakemake -c all`.
+
 A pet side project: how far can a [PyPSA-Eur](https://github.com/PyPSA/pypsa-eur)
 dispatch model go in back-casting an hourly day-ahead price?
 
@@ -191,7 +198,7 @@ everything, including the installation of the pinned environment: the upstream b
 the raw and patched back-casts, their validation reports and the price comparison.
 
 ```bash
-pixi run --manifest-path pypsa-eur/pixi.toml snakemake -c all
+pixi run --manifest-path ../pixi.toml snakemake -c all
 ```
 
 The repository has no environment of its own: it runs in the submodule's pixi

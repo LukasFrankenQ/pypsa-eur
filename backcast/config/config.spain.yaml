@@ -13,7 +13,7 @@ run:
   name: wy2024
   scenarios:
     enable: true
-    file: ../config/scenarios.yaml
+    file: backcast/config/scenarios.yaml
   disable_progressbar: true
   shared_resources:
     policy: false

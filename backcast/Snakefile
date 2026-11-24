@@ -4,14 +4,14 @@
 
 """Snakemake workflow for the Spanish electricity price back-cast.
 
-``build_upstream`` runs the PyPSA-Eur network build inside the ``pypsa-eur/``
-submodule with ``--configfile ../config/config.spain.yaml``; the other rules take
-over from its composed network: prepare (patch engine), solve (dispatch), validate
-against published actuals, plot.
+``build_upstream`` runs the PyPSA-Eur network build of the repository this folder
+sits in (``..``) with ``--configfile backcast/config/config.spain.yaml``; the other
+rules take over from its composed network: prepare (patch engine), solve (dispatch),
+validate against published actuals, plot. Run from this folder: ``snakemake -j4``.
 """
 
 
-configfile: "pypsa-eur/config/config.default.yaml"
+configfile: "../config/config.default.yaml"
 configfile: "config/config.spain.yaml"
 
 
@@ -36,39 +36,39 @@ rule all:
 rule build_upstream:
     """Builds the composed network and processed costs inside the pypsa-eur submodule."""
     output:
-        network=f"pypsa-eur/resources/{{run}}/networks/composed_{HORIZON}.nc",
-        costs=f"pypsa-eur/resources/{{run}}/costs_{HORIZON}_processed.csv",
+        network=f"../resources/{{run}}/networks/composed_{HORIZON}.nc",
+        costs=f"../resources/{{run}}/costs_{HORIZON}_processed.csv",
     threads: workflow.cores
     params:
         horizon=HORIZON,
     shell:
         """
-        cd pypsa-eur && snakemake \
+        cd .. && snakemake \
             resources/{wildcards.run}/networks/composed_{params.horizon}.nc \
             resources/{wildcards.run}/costs_{params.horizon}_processed.csv \
-            -j {threads} --configfile ../config/config.spain.yaml
+            -j {threads} --configfile backcast/config/config.spain.yaml
         """
 
 
 rule upstream_map_inputs:
     """Upstream build files the validation maps read, built on the way to the composed network."""
     input:
-        ancient(f"pypsa-eur/resources/{RUN}/networks/composed_{HORIZON}.nc"),
+        ancient(f"../resources/{RUN}/networks/composed_{HORIZON}.nc"),
     output:
-        base_network=f"pypsa-eur/resources/{RUN}/networks/base.nc",
-        powerplants=f"pypsa-eur/resources/{RUN}/powerplants.csv",
-        regions=f"pypsa-eur/resources/{RUN}/onshore_regions.geojson",
+        base_network=f"../resources/{RUN}/networks/base.nc",
+        powerplants=f"../resources/{RUN}/powerplants.csv",
+        regions=f"../resources/{RUN}/onshore_regions.geojson",
         class_regions=expand(
-            f"pypsa-eur/resources/{RUN}/regions_by_class_{{carrier}}.geojson",
+            f"../resources/{RUN}/regions_by_class_{{carrier}}.geojson",
             carrier=CF_CARRIERS,
         ),
     threads: 1
     params:
-        targets=lambda w, output: [f.removeprefix("pypsa-eur/") for f in output],
+        targets=lambda w, output: [f.removeprefix("../") for f in output],
     shell:
         """
-        cd pypsa-eur && snakemake {params.targets} \
-            -j {threads} --configfile ../config/config.spain.yaml
+        cd .. && snakemake {params.targets} \
+            -j {threads} --configfile backcast/config/config.spain.yaml
         """
 
 
@@ -91,9 +91,9 @@ rule prepare_network:
     """Applies the cited patches of a variant to the composed network and freezes the fleet."""
     input:
         code=["scripts/prepare_network.py"],
-        network=f"pypsa-eur/resources/{RUN}/networks/composed_{HORIZON}.nc",
-        costs=f"pypsa-eur/resources/{RUN}/costs_{HORIZON}_processed.csv",
-        unit_commitment="pypsa-eur/data/unit_commitment.csv",
+        network=f"../resources/{RUN}/networks/composed_{HORIZON}.nc",
+        costs=f"../resources/{RUN}/costs_{HORIZON}_processed.csv",
+        unit_commitment="../data/unit_commitment.csv",
         boundary_flows="data/custom/fr_boundary_flows_2024.csv",
         custom_data=[
             "data/custom/national_capacities.csv",
@@ -190,11 +190,11 @@ rule plot_validation:
     """Plots the validation figure of the 2024 back-cast next to its reports."""
     input:
         code=["scripts/plot_validation.py", "scripts/prepare_network.py"],
-        base_network=f"pypsa-eur/resources/{RUN}/networks/base.nc",
-        powerplants=f"pypsa-eur/resources/{RUN}/powerplants.csv",
-        regions=f"pypsa-eur/resources/{RUN}/onshore_regions.geojson",
+        base_network=f"../resources/{RUN}/networks/base.nc",
+        powerplants=f"../resources/{RUN}/powerplants.csv",
+        regions=f"../resources/{RUN}/onshore_regions.geojson",
         class_regions=expand(
-            f"pypsa-eur/resources/{RUN}/regions_by_class_{{carrier}}.geojson",
+            f"../resources/{RUN}/regions_by_class_{{carrier}}.geojson",
             carrier=CF_CARRIERS,
         ),
         networks=expand(
@@ -205,7 +205,7 @@ rule plot_validation:
             "results/validation/validation_{variant}.csv", variant=["raw", "patched"]
         ),
         capacities="data/custom/national_capacities.csv",
-        colors="pypsa-eur/config/plotting.default.yaml",
+        colors="../config/plotting.default.yaml",
         style="scripts/plots.mplstyle",
     output:
         "results/validation/validation_report.png",

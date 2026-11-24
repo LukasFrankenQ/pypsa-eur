@@ -1761,7 +1761,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--unit-commitment",
         type=Path,
-        default=Path("pypsa-eur/data/unit_commitment.csv"),
+        default=Path("../data/unit_commitment.csv"),
         help="Upstream unit-commitment parameters CSV.",
     )
     parser.add_argument(

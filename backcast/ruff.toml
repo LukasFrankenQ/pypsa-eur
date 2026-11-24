@@ -2,4 +2,4 @@
 #
 # SPDX-License-Identifier: MIT
 
-extend = "pypsa-eur/ruff.toml"
+extend = "../ruff.toml"
