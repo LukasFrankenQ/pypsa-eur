@@ -5,6 +5,8 @@
 
 <!-- Upcoming Release -->
 <!-- ================= -->
+* New option `existing_capacities: default_power_lifetime` for the lifetime of existing power plants without a known retirement year, by technology. With myopic and perfect foresight such plants retired after the lifetime of a new plant from the cost data (40 years for nuclear), which removed every reactor commissioned before 1985 from a 2025 network: 50 of 112 GW in Europe, 29 of 66 GW in France. The default now keeps nuclear plants for 60 years and gas plants (CCGT, OCGT) for 35 instead of 25 years, which leaves 189 instead of 149 GW of the 237 GW gas plants in the European plant data standing in 2025; technologies not listed are unchanged.
+
 * Electricity-only networks under myopic foresight no longer get their existing conventional plants a second time: `add_existing_baseyear` added them as links from fuel buses on top of the generators the network already holds. Gas and nuclear links had no fuel supply and stayed idle; biomass CHP links pointed at a bus that does not exist and produced unpaid electricity.
 
 * `costs: emission_prices: co2` given per planning horizon (e.g. `{2025: 70, 2030: 120}`) is now applied in electricity-only networks under overnight and myopic foresight; before, it was accepted and then ignored with a warning, leaving the network without any CO2 price. Under myopic foresight, generators carried over from earlier horizons move to the current horizon's price, so every emitting generator of a horizon pays the same.

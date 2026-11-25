@@ -95,6 +95,10 @@ class ExistingCapacitiesConfig(ConfigModel):
         20,
         description="Default lifetime for heating technologies (years).",
     )
+    default_power_lifetime: dict[str, float] = Field(
+        default_factory=lambda: {"nuclear": 60, "CCGT": 35, "OCGT": 35},
+        description="Lifetime (years) of existing power plants without a known retirement year, by technology (nuclear, coal, lignite, oil, OCGT, CCGT, urban central solid biomass CHP). Technologies not listed use the lifetime of a new plant from the cost data.",
+    )
     solar_rooftop_ratio: float = Field(
         0.5,
         description="Ratio of existing solar capacity to assign to rooftop vs utility-scale (between 0 and 1).",

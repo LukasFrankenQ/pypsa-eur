@@ -2820,6 +2820,13 @@
           "description": "Default lifetime for heating technologies (years).",
           "type": "integer"
         },
+        "default_power_lifetime": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "Lifetime (years) of existing power plants without a known retirement year, by technology (nuclear, coal, lignite, oil, OCGT, CCGT, urban central solid biomass CHP). Technologies not listed use the lifetime of a new plant from the cost data.",
+          "type": "object"
+        },
         "solar_rooftop_ratio": {
           "default": 0.5,
           "description": "Ratio of existing solar capacity to assign to rooftop vs utility-scale (between 0 and 1).",
@@ -14113,6 +14120,13 @@
           "default": 20,
           "description": "Default lifetime for heating technologies (years).",
           "type": "integer"
+        },
+        "default_power_lifetime": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "Lifetime (years) of existing power plants without a known retirement year, by technology (nuclear, coal, lignite, oil, OCGT, CCGT, urban central solid biomass CHP). Technologies not listed use the lifetime of a new plant from the cost data.",
+          "type": "object"
         },
         "solar_rooftop_ratio": {
           "default": 0.5,

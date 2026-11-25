@@ -156,6 +156,27 @@ def add_existing_renewables(
     df_agg["resource_class"] = df_agg["resource_class"].fillna(0)
 
 
+def estimate_retirement_year(
+    powerplants: pd.DataFrame,
+    costs: pd.DataFrame,
+    default_lifetime: dict[str, float],
+) -> pd.Series:
+    """
+    Retirement year of existing power plants.
+
+    A plant without a known retirement year (`DateOut`) retires after the lifetime
+    given for its technology in `default_lifetime`. Technologies not listed there
+    use the lifetime of a new plant from the cost data, and 30 years if the cost
+    data holds none.
+    """
+    lifetime = (
+        powerplants.Fueltype.map(default_lifetime)
+        .fillna(powerplants.Fueltype.map(costs.lifetime))
+        .fillna(30)
+    )
+    return powerplants.DateOut.combine_first(powerplants.DateIn + lifetime)
+
+
 def add_power_capacities_installed_before_baseyear(
     n: pypsa.Network,
     costs: pd.DataFrame,
@@ -168,6 +189,7 @@ def add_power_capacities_installed_before_baseyear(
     spatial: SimpleNamespace,
     solar_rooftop_ratio: float = 0.5,
     conventional_as_links: bool = True,
+    default_lifetime: dict[str, float] | None = None,
 ) -> None:
     """
     Add power generation capacities installed before base year.
@@ -200,6 +222,8 @@ def add_power_capacities_installed_before_baseyear(
         Container of spatial data
     solar_rooftop_ratio: float
         Ratio of solar capacity to assign to rooftop vs utility-scale (between 0 and 1)
+    default_lifetime: dict
+        Lifetime by technology for plants without a known retirement year
     """
     logger.debug(f"Adding power capacities installed before {baseyear}")
 
@@ -246,9 +270,7 @@ def add_power_capacities_installed_before_baseyear(
     df_agg.dropna(subset="DateIn", inplace=True)
 
     # Estimate missing DateOut
-    df_agg["DateOut"] = df_agg.DateOut.combine_first(
-        df_agg.DateIn + df_agg.Fueltype.map(costs.lifetime).fillna(30)
-    )
+    df_agg["DateOut"] = estimate_retirement_year(df_agg, costs, default_lifetime or {})
 
     # include renewables in df_agg
     add_existing_renewables(
@@ -1119,6 +1141,7 @@ def main(
         solar_rooftop_ratio=params.existing_capacities["solar_rooftop_ratio"],
         # an electricity-only network holds its conventional plants as generators
         conventional_as_links=options["enabled"],
+        default_lifetime=params.existing_capacities["default_power_lifetime"],
     )
 
     # an electricity-only network has no heat or industry buses to attach existing plants to

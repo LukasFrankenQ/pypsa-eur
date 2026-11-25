@@ -638,6 +638,10 @@ existing_capacities:
   - 2025
   threshold_capacity: 10
   default_heating_lifetime: 20
+  default_power_lifetime:
+    nuclear: 60
+    CCGT: 35
+    OCGT: 35
   solar_rooftop_ratio: 0.5
   conventional_carriers:
   - lignite
