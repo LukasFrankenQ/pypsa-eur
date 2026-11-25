@@ -1121,7 +1121,8 @@ def main(
         conventional_as_links=options["enabled"],
     )
 
-    if options["heating"]:
+    # an electricity-only network has no heat or industry buses to attach existing plants to
+    if options["enabled"] and options["heating"]:
         add_heating_capacities_installed_before_baseyear(
             n=n,
             costs=costs,
@@ -1143,7 +1144,7 @@ def main(
             spatial=spatial,
         )
 
-    if params.existing_capacities["industry_plants"]:
+    if options["enabled"] and params.existing_capacities["industry_plants"]:
         add_existing_industry(
             n=n,
             options=options,
