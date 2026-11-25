@@ -5,6 +5,8 @@
 
 <!-- Upcoming Release -->
 <!-- ================= -->
+* Electricity-only networks under myopic foresight no longer get their existing conventional plants a second time: `add_existing_baseyear` added them as links from fuel buses on top of the generators the network already holds. Gas and nuclear links had no fuel supply and stayed idle; biomass CHP links pointed at a bus that does not exist and produced unpaid electricity.
+
 * `costs: emission_prices: co2` given per planning horizon (e.g. `{2025: 70, 2030: 120}`) is now applied in electricity-only networks under overnight and myopic foresight; before, it was accepted and then ignored with a warning, leaving the network without any CO2 price. Under myopic foresight, generators carried over from earlier horizons move to the current horizon's price, so every emitting generator of a horizon pays the same.
 
 * `sector: enhanced_geothermal: lcoe_bins` now defaults to a single edge (`[400]`): `build_egs_potentials` writes one supply-curve step per region, its whole EGS potential at the capacity-weighted mean cost, efficiency and depth of the region's columns, and `add_enhanced_geothermal` builds one well link per region, `<bus> enhanced geothermal` (no step index; the index stays with several edges). The stepped curve let the model take a region's cheapest tranche first, although the model does not resolve where within a region the heat users and the hot rock coincide; the region's average is what its industry and district heat can count on. The earlier edges (`[75, 100, 125, 150, 175, 200, 250, 300, 400]`) restore the stepped curve.

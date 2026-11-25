@@ -162,9 +162,16 @@ def add_power_capacities_installed_before_baseyear(
     renewable_carriers: list[str],
     spatial: SimpleNamespace,
     solar_rooftop_ratio: float = 0.5,
+    conventional_as_links: bool = True,
 ) -> None:
     """
     Add power generation capacities installed before base year.
+
+    Wind and solar come in as generators per build year. Conventional plants come
+    in as links from their fuel bus, which is how a sector-coupled network holds
+    them. An electricity-only network has no fuel buses and already holds its
+    conventional plants as generators, so there `conventional_as_links` is off and
+    they are left out here.
 
     Parameters
     ----------
@@ -373,6 +380,9 @@ def add_power_capacities_installed_before_baseyear(
                     build_year=grouping_year,
                     lifetime=costs.at[cost_key, "lifetime"],
                 )
+
+        elif not conventional_as_links:
+            continue
 
         else:
             bus0 = vars(spatial)[carrier[generator]].nodes
@@ -1102,6 +1112,8 @@ def main(
         renewable_carriers=renewable_carriers,
         spatial=spatial,
         solar_rooftop_ratio=params.existing_capacities["solar_rooftop_ratio"],
+        # an electricity-only network holds its conventional plants as generators
+        conventional_as_links=options["enabled"],
     )
 
     if options["heating"]:
