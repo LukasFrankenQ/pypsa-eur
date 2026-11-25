@@ -43,6 +43,7 @@ from scripts.prepare_network import (
     apply_co2_budget_constraints,
     apply_temporal_aggregation,
     maybe_adjust_costs_and_potentials,
+    update_brownfield_emission_prices,
 )
 from scripts.prepare_network import main as prepare_network_for_solving
 from scripts.prepare_perfect_foresight import apply_phase_outs
@@ -119,9 +120,23 @@ if __name__ == "__main__":
     prepare_network_for_solving(n, inputs, params, nyears, current_horizon)
 
     if foresight == "myopic" and not is_first_horizon:
+        composed_here = n.generators.index
         apply_brownfield(
             n, n_previous, inputs, params, current_horizon, renewable_carriers
         )
+        if not sector_mode:
+            # generators of this horizon got its CO2 price in the step above; those
+            # taken from the previous solved network still carry that horizon's
+            carried_over = n.generators.index.intersection(
+                n_previous.generators.index
+            ).difference(composed_here)
+            update_brownfield_emission_prices(
+                n,
+                carried_over,
+                params.costs["emission_prices"],
+                current_horizon,
+                horizons[horizons.index(current_horizon) - 1],
+            )
 
     if foresight == "perfect":
         n = prepare_perfect_foresight(n, n_previous, params, current_horizon)

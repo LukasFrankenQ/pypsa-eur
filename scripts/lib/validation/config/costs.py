@@ -22,7 +22,7 @@ class _EmissionPricesConfig(ConfigModel):
     )
     co2: float | dict[int, float] = Field(
         0.0,
-        description="Exogenous price of carbon-dioxide. In electricity-only runs it is added to the marginal costs of fossil-fuelled generators according to their carbon intensity, while for sector networks it applies to emissions ending up in CO2 atmosphere.",
+        description="Exogenous price of carbon-dioxide, as one value or as a mapping of planning horizon to value. In electricity-only runs it is added to the marginal costs of fossil-fuelled generators according to their carbon intensity; with a value per horizon under myopic foresight, generators carried over from earlier horizons move to the price of the current one (not supported under perfect foresight). For sector networks it applies to emissions ending up in CO2 atmosphere.",
     )
     dynamic: bool = Field(
         False,

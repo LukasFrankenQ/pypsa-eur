@@ -277,7 +277,14 @@ def add_emission_prices(
     n: pypsa.Network,
     emission_prices: dict[str, float] | None = None,
     exclude_co2: bool = False,
+    generators: pd.Index | None = None,
 ) -> None:
+    """
+    Add the price of emissions to the marginal cost of generators and storage units.
+
+    With `generators`, only these generators are touched and storage units are left
+    alone.
+    """
     emission_prices = dict(emission_prices or {"co2": 0.0})
     if exclude_co2:
         emission_prices.pop("co2")
@@ -286,10 +293,58 @@ def add_emission_prices(
         * n.carriers.filter(like="_emissions")
     ).sum(axis=1)
     gen_ep = n.generators.carrier.map(ep) / n.generators.efficiency
+    if generators is not None:
+        gen_ep = gen_ep.where(gen_ep.index.isin(generators), 0.0)
     n.generators["marginal_cost"] += gen_ep
     n.generators_t["marginal_cost"] += gen_ep[n.generators_t["marginal_cost"].columns]
+    if generators is not None:
+        return
     su_ep = n.storage_units.carrier.map(ep) / n.storage_units.efficiency_dispatch
     n.storage_units["marginal_cost"] += su_ep
+
+
+def update_brownfield_emission_prices(
+    n: pypsa.Network,
+    carried_over: pd.Index,
+    emission_prices: dict,
+    current_horizon: int,
+    previous_horizon: int,
+) -> None:
+    """
+    Move generators carried over from the previous horizon to this horizon's CO2 price.
+
+    A myopic horizon takes the generators of earlier horizons from the previous
+    solved network, with the marginal cost they had there, which includes the CO2
+    price of that horizon. With a price per planning horizon
+    (`costs: emission_prices: co2` as a mapping) the difference between the two
+    horizons is added, so every emitting generator of a horizon pays the same price.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network of the current horizon, after the brownfield step.
+    carried_over : pd.Index
+        Generators that came from the previous solved network.
+    emission_prices : dict
+        The `costs: emission_prices` configuration.
+    current_horizon, previous_horizon : int
+        Planning horizons of this and of the previous network.
+    """
+    co2 = emission_prices["co2"]
+    if (
+        not emission_prices["enable"]
+        or emission_prices["dynamic"]
+        or not isinstance(co2, dict)
+    ):
+        return
+    change = get(co2, current_horizon) - get(co2, previous_horizon)
+    if change == 0 or carried_over.empty:
+        return
+    logger.info(
+        f"Moving {len(carried_over)} carried-over generators from the CO2 price of "
+        f"{previous_horizon} to that of {current_horizon} ({change:+.1f} per tonne)."
+    )
+    add_emission_prices(n, {"co2": change}, generators=carried_over)
 
 
 def add_dynamic_emission_prices(n: pypsa.Network, fn: str) -> None:
@@ -462,13 +517,20 @@ def main(
             raise ValueError("CO2 price file for monthly prices not found")
         add_dynamic_emission_prices(n, inputs.co2_price)
     elif emission_prices["enable"]:
-        if isinstance(emission_prices["co2"], dict):
+        co2 = emission_prices["co2"]
+        per_horizon = isinstance(co2, dict)
+        if per_horizon and (params.sector["enabled"] or params.foresight == "perfect"):
+            # a sector network prices CO2 at the atmosphere, and a perfect foresight
+            # network keeps one marginal cost per generator over all its periods
             logger.warning(
-                "Not setting emission prices specified per planning horizon. "
-                "Use dynamic emission prices instead."
+                "Not adding emission prices specified per planning horizon to the "
+                "marginal cost of generators: this is only done for electricity-only "
+                "networks under overnight or myopic foresight."
             )
         else:
-            add_emission_prices(n, {"co2": emission_prices["co2"]}, exclude_co2=False)
+            add_emission_prices(
+                n, {"co2": get(co2, current_horizon)}, exclude_co2=False
+            )
 
     transmission_limit = electricity_cfg["transmission_limit"]
     if isinstance(transmission_limit, dict) and params.foresight == "perfect":
