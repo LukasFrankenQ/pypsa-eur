@@ -5,6 +5,8 @@
 
 <!-- Upcoming Release -->
 <!-- ================= -->
+* Electricity-only networks under myopic foresight now retire their existing thermal power plants (nuclear, coal, lignite, oil, gas, biomass): a plant counts in every planning horizon up to its retirement year, which is the year given in the plant data or, without one, the commissioning year plus `existing_capacities: default_power_lifetime` (cost data lifetime for technologies not listed), the same rule as with sector coupling. Before, every plant in the plant data stood in every horizon, including those with a known retirement year. Sites of retired plants remain available to technologies listed in `electricity: extendable_carriers`.
+
 * New option `existing_capacities: default_power_lifetime` for the lifetime of existing power plants without a known retirement year, by technology. With myopic and perfect foresight such plants retired after the lifetime of a new plant from the cost data (40 years for nuclear), which removed every reactor commissioned before 1985 from a 2025 network: 50 of 112 GW in Europe, 29 of 66 GW in France. The default now keeps nuclear plants for 60 years and gas plants (CCGT, OCGT) for 35 instead of 25 years, which leaves 189 instead of 149 GW of the 237 GW gas plants in the European plant data standing in 2025; technologies not listed are unchanged.
 
 * Electricity-only networks under myopic foresight no longer get their existing conventional plants a second time: `add_existing_baseyear` added them as links from fuel buses on top of the generators the network already holds. Gas and nuclear links had no fuel supply and stayed idle; biomass CHP links pointed at a bus that does not exist and produced unpaid electricity.

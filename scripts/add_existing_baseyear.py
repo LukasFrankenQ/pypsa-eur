@@ -29,6 +29,7 @@ import powerplantmatching as pm
 import pypsa
 import xarray as xr
 
+from scripts.add_electricity import estimate_retirement_year
 from scripts.build_energy_totals import cartesian
 from scripts.definitions.heat_system import HeatSystem
 from scripts.prepare_sector_network import cement_kiln_parameters, define_spatial
@@ -154,27 +155,6 @@ def add_existing_renewables(
                     df_agg.at[name, "resource_class"] = bin_id
 
     df_agg["resource_class"] = df_agg["resource_class"].fillna(0)
-
-
-def estimate_retirement_year(
-    powerplants: pd.DataFrame,
-    costs: pd.DataFrame,
-    default_lifetime: dict[str, float],
-) -> pd.Series:
-    """
-    Retirement year of existing power plants.
-
-    A plant without a known retirement year (`DateOut`) retires after the lifetime
-    given for its technology in `default_lifetime`. Technologies not listed there
-    use the lifetime of a new plant from the cost data, and 30 years if the cost
-    data holds none.
-    """
-    lifetime = (
-        powerplants.Fueltype.map(default_lifetime)
-        .fillna(powerplants.Fueltype.map(costs.lifetime))
-        .fillna(30)
-    )
-    return powerplants.DateOut.combine_first(powerplants.DateIn + lifetime)
 
 
 def add_power_capacities_installed_before_baseyear(

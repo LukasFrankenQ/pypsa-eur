@@ -97,7 +97,7 @@ class ExistingCapacitiesConfig(ConfigModel):
     )
     default_power_lifetime: dict[str, float] = Field(
         default_factory=lambda: {"nuclear": 60, "CCGT": 35, "OCGT": 35},
-        description="Lifetime (years) of existing power plants without a known retirement year, by technology (nuclear, coal, lignite, oil, OCGT, CCGT, urban central solid biomass CHP). Technologies not listed use the lifetime of a new plant from the cost data.",
+        description="Lifetime (years) of existing power plants without a known retirement year, by technology (nuclear, coal, lignite, oil, OCGT, CCGT, urban central solid biomass CHP). Technologies not listed use the lifetime of a new plant from the cost data. Applies with sector coupling under myopic and perfect foresight, and to electricity-only networks under myopic foresight (biomass plants there use the key `urban central solid biomass CHP` as well).",
     )
     solar_rooftop_ratio: float = Field(
         0.5,

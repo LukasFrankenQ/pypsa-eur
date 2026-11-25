@@ -239,6 +239,81 @@ def add_co2_emissions(
     ].values
 
 
+# technologies whose existing plants retire by age; keys as in
+# `existing_capacities: default_power_lifetime`
+RETIRING_CARRIERS = {
+    "nuclear": "nuclear",
+    "coal": "coal",
+    "lignite": "lignite",
+    "oil": "oil",
+    "OCGT": "OCGT",
+    "CCGT": "CCGT",
+    "biomass": "urban central solid biomass CHP",
+}
+
+
+def estimate_retirement_year(
+    powerplants: pd.DataFrame,
+    costs: pd.DataFrame,
+    default_lifetime: dict[str, float],
+) -> pd.Series:
+    """
+    Retirement year of existing power plants.
+
+    A plant without a known retirement year (`DateOut`) retires after the lifetime
+    given for its technology in `default_lifetime`. Technologies not listed there
+    use the lifetime of a new plant from the cost data, and 30 years if the cost
+    data holds none.
+    """
+    lifetime = (
+        powerplants.Fueltype.map(default_lifetime)
+        .fillna(powerplants.Fueltype.map(costs.lifetime))
+        .fillna(30)
+    )
+    return powerplants.DateOut.combine_first(powerplants.DateIn + lifetime)
+
+
+def retire_powerplants(
+    ppl: pd.DataFrame,
+    costs: pd.DataFrame,
+    horizon: int,
+    default_lifetime: dict[str, float],
+) -> pd.DataFrame:
+    """
+    Set the capacity of power plants retired before a planning horizon to zero.
+
+    Applies the retirement rule of `estimate_retirement_year` to the thermal plants
+    in `RETIRING_CARRIERS`; a plant stands in every horizon up to and including its
+    retirement year. A plant without a commissioning year gets the mean of its
+    technology. Retired plants stay in the table with zero capacity, so that their
+    site is still known to technologies that may be expanded there.
+    """
+    thermal = ppl[ppl.carrier.isin(RETIRING_CARRIERS)]
+    plants = pd.DataFrame(
+        {
+            "Fueltype": thermal.carrier.map(RETIRING_CARRIERS),
+            "DateIn": thermal.datein,
+            "DateOut": thermal.dateout,
+        }
+    )
+    plants["DateIn"] = plants.groupby("Fueltype").DateIn.transform(
+        lambda x: x.fillna(x.mean() // 1)
+    )
+    retirement = estimate_retirement_year(plants, costs, default_lifetime)
+    retired = retirement.index[retirement < horizon]
+
+    before = thermal.groupby("carrier").p_nom.sum()
+    dropped = thermal.loc[retired].groupby("carrier").p_nom.sum()
+    summary = pd.DataFrame({"plant data": before, "retired": dropped}).fillna(0)
+    logger.info(
+        f"Power plants retired before {horizon} [GW]\n{summary.div(1e3).round(1)}"
+    )
+
+    ppl = ppl.copy()
+    ppl.loc[retired, "p_nom"] = 0.0
+    return ppl
+
+
 def load_and_aggregate_powerplants(
     ppl_fn: str,
     costs: pd.DataFrame,
@@ -246,7 +321,15 @@ def load_and_aggregate_powerplants(
     aggregation_strategies: dict = None,
     exclude_carriers: list = None,
     estimate_efficiencies: dict | None = None,
+    retire_before: int | None = None,
+    default_lifetime: dict[str, float] | None = None,
 ) -> pd.DataFrame:
+    """
+    Load the power plants and aggregate them to one row per bus and carrier.
+
+    With `retire_before` given, thermal plants retired before that planning horizon
+    count with zero capacity (see `retire_powerplants`).
+    """
     if not aggregation_strategies:
         aggregation_strategies = {}
 
@@ -295,6 +378,8 @@ def load_and_aggregate_powerplants(
             estimate_efficiency(ppl, estimate_efficiencies)
         )
     ppl["efficiency"] = efficiency.combine_first(ppl.efficiency_r)
+    if retire_before is not None:
+        ppl = retire_powerplants(ppl, costs, retire_before, default_lifetime or {})
     ppl["lifetime"] = (ppl.dateout - ppl.datein).fillna(np.inf)
     ppl["build_year"] = ppl.datein.fillna(0).astype(int)
     ppl["marginal_cost"] = (
@@ -601,6 +686,8 @@ def attach_conventional_generators(
     )
 
     ppl = ppl.query("carrier in @carriers").copy()
+    # a site without capacity is only kept for a technology that can be built there
+    ppl = ppl[(ppl.p_nom > 0) | ppl.carrier.isin(extendable_carriers["Generator"])]
 
     # reduce carriers to those in power plant dataset
     carriers = list(set(carriers) & set(ppl.carrier.unique()))
@@ -1215,6 +1302,15 @@ def main(
             aggregation_strategies=params.clustering["aggregation_strategies"],
             exclude_carriers=params.clustering["exclude_carriers"],
             estimate_efficiencies=params.conventional["estimate_efficiencies"],
+            # An electricity-only network under myopic foresight takes its
+            # conventional plants from the plant data in every planning horizon;
+            # with sector coupling add_existing_baseyear dates and retires them.
+            retire_before=(
+                int(params.horizon)
+                if foresight == "myopic" and not params.sector["enabled"]
+                else None
+            ),
+            default_lifetime=params.existing_capacities["default_power_lifetime"],
         )
     else:
         ppl = pd.DataFrame()
