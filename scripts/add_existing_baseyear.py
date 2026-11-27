@@ -157,6 +157,36 @@ def add_existing_renewables(
     df_agg["resource_class"] = df_agg["resource_class"].fillna(0)
 
 
+def conventional_availability(
+    n: pypsa.Network,
+    carrier: str,
+    conventional_params: dict,
+    conventional_inputs: dict,
+) -> pd.Series:
+    """
+    Availability (`p_max_pu`) of the existing plants of one technology, by bus.
+
+    Reads `conventional: <carrier>: p_max_pu`, which is one value for all plants or
+    a table by country and year, as for the generators of an electricity-only
+    network. Technologies without the setting and countries without a value are
+    fully available.
+    """
+    availability = pd.Series(1.0, index=n.buses.index)
+    key = f"conventional_{carrier}_p_max_pu"
+    if key in conventional_inputs:
+        df = pd.read_csv(conventional_inputs[key], index_col=0)
+        try:
+            df.columns = df.columns.astype(int)
+            values = df[n.snapshots[0].year]
+        except (ValueError, TypeError, KeyError, AttributeError):
+            values = df.iloc[:, -1]  # take last column if year selection fails
+        return n.buses.country.map(values).fillna(availability)
+    value = conventional_params.get(carrier, {}).get("p_max_pu")
+    if isinstance(value, int | float):
+        availability[:] = value
+    return availability
+
+
 def add_power_capacities_installed_before_baseyear(
     n: pypsa.Network,
     costs: pd.DataFrame,
@@ -170,6 +200,8 @@ def add_power_capacities_installed_before_baseyear(
     solar_rooftop_ratio: float = 0.5,
     conventional_as_links: bool = True,
     default_lifetime: dict[str, float] | None = None,
+    conventional_params: dict | None = None,
+    conventional_inputs: dict | None = None,
 ) -> None:
     """
     Add power generation capacities installed before base year.
@@ -204,6 +236,10 @@ def add_power_capacities_installed_before_baseyear(
         Ratio of solar capacity to assign to rooftop vs utility-scale (between 0 and 1)
     default_lifetime: dict
         Lifetime by technology for plants without a known retirement year
+    conventional_params: dict
+        Settings of `conventional`, for the availability of conventional plants
+    conventional_inputs: dict
+        Data files named in `conventional`, by `conventional_<carrier>_<attribute>`
     """
     logger.debug(f"Adding power capacities installed before {baseyear}")
 
@@ -446,6 +482,12 @@ def add_power_capacities_installed_before_baseyear(
                         p_nom=new_capacity / costs.at[generator, "efficiency"],
                         efficiency=costs.at[generator, "efficiency"],
                         efficiency2=costs.at[carrier[generator], "CO2 intensity"],
+                        p_max_pu=conventional_availability(
+                            n,
+                            generator,
+                            conventional_params or {},
+                            conventional_inputs or {},
+                        ).loc[new_capacity.index],
                         build_year=grouping_year,
                         lifetime=lifetime_assets.loc[new_capacity.index],
                     )
@@ -1122,6 +1164,10 @@ def main(
         # an electricity-only network holds its conventional plants as generators
         conventional_as_links=options["enabled"],
         default_lifetime=params.existing_capacities["default_power_lifetime"],
+        conventional_params=params.conventional,
+        conventional_inputs={
+            k: v for k, v in inputs.items() if k.startswith("conventional_")
+        },
     )
 
     # an electricity-only network has no heat or industry buses to attach existing plants to
